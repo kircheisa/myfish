@@ -1,0 +1,1751 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>碧海追鱼 · 珊瑚礁捕捞季</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html,body { width:100%; height:100%; overflow:hidden; background:#0d5c8f;
+    font-family:"Segoe UI","PingFang SC","Microsoft YaHei",system-ui,sans-serif; }
+  #app { position:fixed; inset:0; }
+  canvas { display:block; }
+
+  /* ---------- 通用玻璃拟态 ---------- */
+  .glass { background:rgba(255,255,255,.74); backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px);
+    border-radius:999px; box-shadow:0 4px 18px rgba(10,60,90,.18); border:1px solid rgba(255,255,255,.65); }
+
+  /* ---------- HUD ---------- */
+  #hud { position:fixed; inset:0; pointer-events:none; z-index:20; }
+  #hudTL { position:absolute; top:16px; left:16px; display:flex; gap:10px; align-items:center; }
+  .pill { padding:9px 18px; font-size:16px; font-weight:700; color:#0c4a63; display:flex; gap:8px; align-items:center; }
+  .pill small { font-weight:600; opacity:.75; font-size:12px; }
+  #lvPill { background:rgba(255,225,150,.82); color:#7a4c00; }
+  #btnBook { position:absolute; top:16px; right:16px; pointer-events:auto; cursor:pointer;
+    padding:10px 20px; font-size:15px; font-weight:700; color:#0c4a63; transition:transform .15s; }
+  #btnBook:hover { transform:scale(1.06); }
+  #btnBook .em { font-size:18px; }
+  #btnSound { position:absolute; top:64px; right:16px; pointer-events:auto; cursor:pointer;
+    padding:7px 15px; font-size:16px; transition:transform .15s; }
+  #btnSound:hover { transform:scale(1.08); }
+
+  /* ---------- 小地图 ---------- */
+  #minimap { position:fixed; right:16px; bottom:16px; z-index:22; width:170px; height:170px;
+    border-radius:50%; pointer-events:none;
+    box-shadow:0 6px 22px rgba(10,60,90,.30), inset 0 0 0 3px rgba(255,255,255,.55);
+    background:rgba(10,50,80,.35); }
+  body.touch #minimap { bottom:160px; }
+
+  #hint { position:absolute; bottom:14px; left:50%; transform:translateX(-50%);
+    padding:8px 20px; font-size:13px; color:#0c4a63; font-weight:600; white-space:nowrap; }
+  kbd { background:#fff; border:1px solid #b9d6e2; border-bottom-width:2.5px; border-radius:6px;
+    padding:1px 7px; font-family:inherit; font-size:12px; font-weight:800; color:#0c4a63; }
+
+  #netWrap { position:absolute; bottom:52px; left:50%; transform:translateX(-50%);
+    width:150px; height:8px; border-radius:99px; background:rgba(255,255,255,.5);
+    overflow:hidden; border:1px solid rgba(255,255,255,.7); }
+  #netBar { height:100%; width:0%; background:linear-gradient(90deg,#19b6c9,#0e8ea8); border-radius:99px; }
+
+  /* ---------- 弹出文字 ---------- */
+  #pops { position:fixed; inset:0; pointer-events:none; z-index:30; overflow:hidden; }
+  .pop { position:absolute; transform:translate(-50%,-100%); font-weight:800; font-size:17px;
+    white-space:nowrap; text-shadow:0 2px 6px rgba(0,40,60,.35); animation:rise 1.35s ease-out forwards; }
+  @keyframes rise { 0%{opacity:0; margin-top:0;} 12%{opacity:1;} 75%{opacity:1;} 100%{opacity:0; margin-top:-72px;} }
+
+  #toast { position:fixed; top:22%; left:50%; transform:translateX(-50%); z-index:40; pointer-events:none;
+    display:flex; flex-direction:column; gap:8px; align-items:center; }
+  .toastItem { padding:12px 26px; font-size:18px; font-weight:800; color:#fff; border-radius:14px;
+    background:rgba(12,74,99,.82); backdrop-filter:blur(8px); box-shadow:0 6px 24px rgba(0,50,80,.3);
+    animation:toastIn 2.6s ease forwards; }
+  .toastItem.gold { background:linear-gradient(90deg,#c9821a,#f0b13d); color:#4a2e00; }
+  @keyframes toastIn { 0%{opacity:0; transform:scale(.7);} 10%{opacity:1; transform:scale(1.05);}
+    16%{transform:scale(1);} 82%{opacity:1;} 100%{opacity:0; transform:translateY(-16px);} }
+
+  /* ---------- 图鉴 ---------- */
+  #book { position:fixed; inset:0; z-index:50; display:none; align-items:center; justify-content:center;
+    background:rgba(8,40,60,.45); backdrop-filter:blur(6px); }
+  #book.open { display:flex; }
+  #bookCard { width:min(860px, 92vw); max-height:86vh; overflow:auto; border-radius:22px; padding:26px 30px;
+    background:rgba(248,252,254,.94); box-shadow:0 20px 60px rgba(0,30,50,.4); }
+  #bookHead { display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; }
+  #bookHead h2 { font-size:22px; color:#0c4a63; }
+  #bookProgWrap { margin:10px 0 18px; }
+  #bookProgTxt { font-size:13px; color:#38718a; font-weight:600; margin-bottom:6px; }
+  #bookProgBar { height:10px; border-radius:99px; background:#d7e8ef; overflow:hidden; }
+  #bookProgFill { height:100%; width:0%; border-radius:99px; background:linear-gradient(90deg,#19b6c9,#0e8ea8); transition:width .4s; }
+  #bookGrid { display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:12px; }
+  .card { border-radius:16px; padding:14px 10px; text-align:center; border:2px solid transparent;
+    background:#eef6f9; position:relative; }
+  .card .em { font-size:34px; line-height:1.2; filter:drop-shadow(0 2px 3px rgba(0,60,90,.25)); }
+  .card .nm { font-size:14px; font-weight:800; color:#134b63; margin-top:4px; }
+  .card .rt { display:inline-block; font-size:11px; font-weight:700; color:#fff; border-radius:99px;
+    padding:2px 10px; margin-top:6px; }
+  .card .ct { font-size:12px; color:#4a7c92; margin-top:5px; font-weight:600; }
+  .card.locked .em { filter:grayscale(1) brightness(1.6) opacity(.35); }
+  .card.locked .nm { color:#9db6c2; }
+  .card .tag { position:absolute; top:8px; right:8px; font-size:10px; background:#cfe8b8; color:#3d6b1f;
+    border-radius:99px; padding:1px 7px; font-weight:700; }
+  #bookClose { margin-top:20px; text-align:center; }
+  #bookClose button { cursor:pointer; border:none; border-radius:99px; padding:10px 42px; font-size:15px;
+    font-weight:800; color:#fff; background:linear-gradient(90deg,#17a3b8,#0d7d97); box-shadow:0 4px 14px rgba(13,125,151,.4); }
+  #bookClose button:hover { filter:brightness(1.08); }
+
+  /* ---------- 开始界面 ---------- */
+  #start { position:fixed; inset:0; z-index:60; display:flex; align-items:center; justify-content:center;
+    background:linear-gradient(180deg,#0a3d62 0%,#0d6a8f 45%,#1596ab 100%); transition:opacity .6s; }
+  #start.hide { opacity:0; pointer-events:none; }
+  #startCard { text-align:center; padding:44px 54px; border-radius:26px;
+    background:rgba(255,255,255,.10); backdrop-filter:blur(14px); border:1px solid rgba(255,255,255,.25);
+    box-shadow:0 24px 80px rgba(0,30,60,.45); max-width:92vw; }
+  #startCard h1 { font-size:44px; color:#fff; letter-spacing:6px; text-shadow:0 4px 18px rgba(0,50,90,.5); }
+  #startCard .sub { margin-top:10px; font-size:15px; color:#d6f2fb; font-weight:600; letter-spacing:2px; }
+  #startCtrl { margin:26px auto 6px; display:inline-block; text-align:left; color:#eafaff; font-size:14px;
+    line-height:2.1; font-weight:600; }
+  #startBest { margin-top:8px; color:#ffe9b8; font-size:13px; font-weight:700; }
+  #btnStart { margin-top:26px; cursor:pointer; border:none; font-size:20px; font-weight:800; letter-spacing:8px;
+    color:#08414f; padding:15px 64px 15px 72px; border-radius:999px;
+    background:linear-gradient(180deg,#8ff0d8,#2ec9ad); box-shadow:0 10px 30px rgba(20,200,170,.45);
+    transition:transform .15s; }
+  #btnStart:hover { transform:scale(1.06); }
+  #startTip { margin-top:16px; font-size:12px; color:#bfe6f2; }
+
+  /* ---------- 触屏按钮 ---------- */
+  #touch { position:fixed; inset:0; z-index:25; pointer-events:none; display:none; }
+  #touch .tbtn { position:absolute; pointer-events:auto; width:64px; height:64px; border-radius:50%;
+    background:rgba(255,255,255,.6); border:2px solid rgba(255,255,255,.85); backdrop-filter:blur(6px);
+    display:flex; align-items:center; justify-content:center; font-size:26px; color:#0c4a63; font-weight:800;
+    user-select:none; -webkit-user-select:none; touch-action:none; }
+  #tUp { left:24px;  bottom:150px; }
+  #tDn { left:24px;  bottom:70px; }
+  #tLf { right:118px; bottom:70px; }
+  #tRt { right:24px; bottom:70px; }
+  #tNet { right:60px; bottom:160px; width:74px; height:74px; background:rgba(120,230,200,.75); }
+
+  #vig { position:fixed; inset:0; pointer-events:none; z-index:15;
+    background:radial-gradient(ellipse at center, transparent 62%, rgba(4,36,58,.28) 100%); }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="vig"></div>
+
+<div id="hud">
+  <div id="hudTL">
+    <div class="pill glass">🎣 <span id="scoreTxt">0</span><small>分</small></div>
+    <div class="pill glass" id="lvPill">Lv.<span id="lvTxt">1</span> <small>渔夫</small></div>
+  </div>
+  <div id="btnBook" class="glass"><span class="em">📖</span> 图鉴 <span id="bookCnt">0/14</span></div>
+  <div id="btnSound" class="glass" title="音效开关">🔊</div>
+  <div id="netWrap"><div id="netBar"></div></div>
+  <div id="hint" class="glass"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> 航行 · <kbd>空格</kbd> 撒网 · <kbd>C</kbd> 图鉴 · 滚轮缩放</div>
+</div>
+
+<div id="pops"></div>
+<div id="toast"></div>
+
+<div id="book">
+  <div id="bookCard">
+    <div id="bookHead"><h2>📖 海洋生物图鉴</h2><div style="font-size:13px;color:#38718a;font-weight:600">撒网捕鱼 · 驶过海星贝壳即可采集</div></div>
+    <div id="bookProgWrap">
+      <div id="bookProgTxt">收集进度 0 / 14</div>
+      <div id="bookProgBar"><div id="bookProgFill"></div></div>
+    </div>
+    <div id="bookGrid"></div>
+    <div id="bookClose">
+      <button>继续出海</button>
+      <button id="btnReset" style="background:rgba(220,90,80,.12);color:#b23c30;box-shadow:none;border:1.5px solid rgba(220,90,80,.35);margin-left:12px;padding:8px 22px;font-size:13px;">清空存档</button>
+    </div>
+  </div>
+</div>
+
+<div id="touch">
+  <div class="tbtn" id="tUp">▲</div><div class="tbtn" id="tDn">▼</div>
+  <div class="tbtn" id="tLf">◀</div><div class="tbtn" id="tRt">▶</div>
+  <div class="tbtn" id="tNet">🕸</div>
+</div>
+
+<canvas id="minimap" width="170" height="170"></canvas>
+
+<div id="start">
+  <div id="startCard">
+    <h1>碧 海 追 鱼</h1>
+    <div class="sub">—— 珊瑚礁捕捞季 ——</div>
+    <div id="startCtrl">
+      🚤 <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> / 方向键 —— 驾驶小船追逐鱼群<br>
+      🕸 <kbd>空格</kbd> —— 朝船头方向撒网捕捞（稀有生物会挣扎逃脱）<br>
+      ⭐ 驶过海星与贝壳 —— 自动采集<br>
+      📖 <kbd>C</kbd> —— 查看图鉴，集齐 14 种海洋生物
+    </div>
+    <div id="startBest"></div>
+    <button id="btnStart">出 海</button>
+    <div id="startTip">Tip：鱼被惊到后会狂奔一段，随后会疲惫减速 —— 那是收网的最佳时机！</div>
+  </div>
+</div>
+
+<script>
+  // CDN 加载失败兜底提示（此脚本不依赖模块加载成功）
+  setTimeout(function(){
+    if (!window.__game){
+      var el = document.getElementById('startTip');
+      if (el) el.innerHTML = '⚠️ 资源加载失败：游戏需联网从 CDN 加载 three.js，请检查网络后刷新，或用本地静态服务器打开本页面。';
+    }
+  }, 9000);
+</script>
+
+<script type="importmap">
+{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js" } }
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+
+/* ================================================================
+   基础常量 / 工具
+================================================================ */
+const WORLD_R = 235;              // 可航海域半径
+const TERR_SIZE = 560;
+
+// 岛屿 [x, z, 半径, 高度]，浅滩用负高度
+const ISLANDS = [
+  [110,  85, 78, 6.4],
+  [ 45, 138, 50, 3.6],
+  [152,  22, 42, 3.0],
+];
+const BUMPS = [   // 水下沙洲，制造浅绿渐变
+  [ -70,  30, 62, -1.6],
+  [  55, -95, 72, -1.4],
+  [ -25,-150, 55, -1.8],
+  [-140, -40, 48, -1.5],
+];
+const FIELDS = [...ISLANDS, ...BUMPS];
+
+function sstep(a, b, x){ x = (x - a) / (b - a); if (x < 0) x = 0; if (x > 1) x = 1; return x * x * (3 - 2 * x); }
+function tnoise(x, z){
+  return ( Math.sin(x*0.174 + z*0.211)
+         + Math.sin(x*0.071 - z*0.157 + 2.1)
+         + Math.sin(x*0.043 + z*0.089 + 4.7) * 1.4
+         + Math.sin(x*0.312 - z*0.271 + 1.3) * 0.5 ) / 3.9;
+}
+function terrainHeight(x, z){
+  let h = -8.0 + tnoise(x*0.045, z*0.045)*3.4 + tnoise(x*0.16+9.3, z*0.16-7.1)*0.7;
+  for (let i = 0; i < FIELDS.length; i++){
+    const f = FIELDS[i];
+    const d = Math.hypot(x - f[0], z - f[1]) + tnoise(x*0.06+3.7, z*0.06-1.9)*10.0;
+    const k = 1 - sstep(f[2]*0.35, f[2], d);
+    h = Math.max(h, (f[3] + tnoise(x*0.09-4.2, z*0.09+8.8)*1.1) * k + (-1.2)*(1-k));
+  }
+  return h;
+}
+// 水面波浪（JS 与着色器保持一致）
+function waveY(x, z, t){
+  return 0.22*Math.sin(x*0.10 + t*1.25) + 0.16*Math.sin(z*0.13 + t*1.55)
+       + 0.12*Math.sin((x+z)*0.061 + t*0.85) + 0.07*Math.sin((x*0.71 - z*0.63)*0.21 + t*2.2);
+}
+const rand = (a, b) => a + Math.random() * (b - a);
+const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
+const fmtF = n => Number.isInteger(n) ? n + '.0' : n.toString();
+
+/* ================================================================
+   渲染器 / 场景 / 相机 / 灯光
+================================================================ */
+const app = document.getElementById('app');
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.06;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+app.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(0xcfe8f7, 170, 430);
+
+const camera = new THREE.PerspectiveCamera(55, innerWidth / innerHeight, 1, 3000);
+
+const hemi = new THREE.HemisphereLight(0xbfe8ff, 0x3a6f8f, 0.95);
+scene.add(hemi);
+const sun = new THREE.DirectionalLight(0xfff1d6, 2.4);
+sun.position.set(120, 190, 60);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.camera.left = -150; sun.shadow.camera.right = 150;
+sun.shadow.camera.top = 150;   sun.shadow.camera.bottom = -150;
+sun.shadow.camera.near = 20;   sun.shadow.camera.far = 600;
+sun.shadow.bias = -0.0006;
+scene.add(sun); scene.add(sun.target);
+
+// 天空穹顶
+const skyMat = new THREE.ShaderMaterial({
+  side: THREE.BackSide, depthWrite: false,
+  uniforms: { sunDir: { value: new THREE.Vector3(120, 190, 60).normalize() } },
+  vertexShader: `varying vec3 vDir; void main(){ vDir = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }`,
+  fragmentShader: `
+    uniform vec3 sunDir; varying vec3 vDir;
+    void main(){
+      vec3 d = normalize(vDir);
+      float h = clamp(d.y, 0.0, 1.0);
+      vec3 col = mix(vec3(0.847,0.937,0.972), vec3(0.173,0.573,0.886), pow(h, 0.62));
+      float s = max(dot(d, sunDir), 0.0);
+      col += vec3(1.0,0.92,0.72) * pow(s, 300.0) * 1.1;
+      col += vec3(1.0,0.85,0.6)  * pow(s, 6.0) * 0.10;
+      gl_FragColor = vec4(col, 1.0);
+      #include <tonemapping_fragment>
+      #include <colorspace_fragment>
+    }`
+});
+scene.add(new THREE.Mesh(new THREE.SphereGeometry(1400, 24, 14), skyMat));
+
+/* ================================================================
+   地形（海床 + 岛屿）顶点着色
+================================================================ */
+const terrGeo = new THREE.PlaneGeometry(TERR_SIZE, TERR_SIZE, 150, 150);
+terrGeo.rotateX(-Math.PI / 2);
+{
+  const pos = terrGeo.attributes.position;
+  const colors = new Float32Array(pos.count * 3);
+  const cA = new THREE.Color(), cB = new THREE.Color(), cOut = new THREE.Color();
+  for (let i = 0; i < pos.count; i++){
+    const x = pos.getX(i), z = pos.getZ(i);
+    const h = terrainHeight(x, z);
+    pos.setY(i, h);
+    const n = tnoise(x*0.21+5.2, z*0.21-3.1) * 0.5 + 0.5;
+    if      (h < -4.2) cA.set(0x2f5e68).lerp(cB.set(0x407a76), n);
+    else if (h < -1.6) cA.set(0xcdb87e).lerp(cB.set(0xe6d193), n);
+    else if (h < -0.35)cA.set(0xecd9a0).lerp(cB.set(0xf6e7b5), n);
+    else if (h < 0.55) cA.set(0xf2ddab).lerp(cB.set(0xf7e8c0), n);
+    else if (h < 1.9)  cA.set(0x8fc46a).lerp(cB.set(0x5fb35c), n);
+    else               cA.set(0x4fa657).lerp(cB.set(0x3d8f4f), n);
+    cOut.copy(cA);
+    colors[i*3] = cOut.r; colors[i*3+1] = cOut.g; colors[i*3+2] = cOut.b;
+  }
+  terrGeo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+  terrGeo.computeVertexNormals();
+}
+const terrain = new THREE.Mesh(terrGeo, new THREE.MeshStandardMaterial({
+  vertexColors: true, flatShading: true, roughness: 1.0, metalness: 0 }));
+terrain.receiveShadow = true;
+scene.add(terrain);
+
+/* ================================================================
+   水面（自定义着色器：深度渐变 + 岸边泡沫 + 波浪）
+================================================================ */
+const glslFieldCalls = FIELDS.map(f =>
+  `  h = max(h, islandField(x, z, ${fmtF(f[0])}, ${fmtF(f[1])}, ${fmtF(f[2])}, ${fmtF(f[3])}));`).join('\n');
+
+const waterVert = `
+uniform float uTime;
+varying vec3 vWorld;
+float waveF(vec2 p, float t){
+  return 0.22*sin(p.x*0.10 + t*1.25) + 0.16*sin(p.y*0.13 + t*1.55)
+       + 0.12*sin((p.x+p.y)*0.061 + t*0.85) + 0.07*sin((p.x*0.71 - p.y*0.63)*0.21 + t*2.2);
+}
+void main(){
+  vec3 p = position;
+  p.y += waveF(p.xz, uTime);
+  vWorld = p;
+  gl_Position = projectionMatrix * viewMatrix * vec4(p, 1.0);
+}`;
+const waterFrag = `
+uniform float uTime;
+varying vec3 vWorld;
+float tnoise(float x, float z){
+  return ( sin(x*0.174 + z*0.211) + sin(x*0.071 - z*0.157 + 2.1)
+         + sin(x*0.043 + z*0.089 + 4.7)*1.4 + sin(x*0.312 - z*0.271 + 1.3)*0.5 ) / 3.9;
+}
+float islandField(float x, float z, float cx, float cz, float r, float top){
+  float d = length(vec2(x-cx, z-cz)) + tnoise(x*0.06+3.7, z*0.06-1.9)*10.0;
+  float k = 1.0 - smoothstep(r*0.35, r, d);
+  float topH = top + tnoise(x*0.09-4.2, z*0.09+8.8)*1.1;
+  return topH*k + (-1.2)*(1.0-k);
+}
+float terrainH(float x, float z){
+  float h = -8.0 + tnoise(x*0.045, z*0.045)*3.4 + tnoise(x*0.16+9.3, z*0.16-7.1)*0.7;
+${glslFieldCalls}
+  return h;
+}
+void main(){
+  float h = terrainH(vWorld.x, vWorld.z);
+  float depth = -h;
+  vec3 col = mix(vec3(0.29,0.88,0.78), vec3(0.10,0.65,0.75), smoothstep(0.25, 3.2, depth));
+  col = mix(col, vec3(0.035,0.30,0.52), smoothstep(3.0, 9.5, depth));
+  // 阳光碎光
+  float sp = sin(vWorld.x*1.7 + uTime*2.0) * sin(vWorld.z*1.9 - uTime*1.7);
+  col += vec3(0.09,0.10,0.08) * smoothstep(0.86, 1.0, sp);
+  // 岸边泡沫
+  float band = 1.0 - smoothstep(0.12, 1.15, depth);
+  float fn = sin(depth*22.0 - uTime*2.4 + sin(vWorld.x*0.35)*2.0 + sin(vWorld.z*0.29)*2.0);
+  float foam = clamp(band * smoothstep(0.05, 0.9, 0.55 + 0.45*fn), 0.0, 1.0);
+  col = mix(col, vec3(0.97,0.99,1.0), foam);
+  float alpha = mix(0.62, 0.93, smoothstep(0.2, 6.0, depth));
+  alpha = max(alpha, foam);
+  // 手动雾
+  float fogF = smoothstep(170.0, 430.0, distance(cameraPosition, vWorld));
+  col = mix(col, vec3(0.812,0.910,0.969), fogF);
+  gl_FragColor = vec4(col, alpha);
+  #include <tonemapping_fragment>
+  #include <colorspace_fragment>
+}`;
+const waterGeo = new THREE.PlaneGeometry(TERR_SIZE, TERR_SIZE, 150, 150);
+waterGeo.rotateX(-Math.PI / 2);
+const waterMat = new THREE.ShaderMaterial({
+  uniforms: { uTime: { value: 0 } },
+  vertexShader: waterVert, fragmentShader: waterFrag,
+  transparent: true, depthWrite: false,
+});
+const water = new THREE.Mesh(waterGeo, waterMat);
+water.renderOrder = 5;
+scene.add(water);
+
+/* ================================================================
+   材质缓存 & 小工具
+================================================================ */
+const MATS = new Map();
+function mat(color, opts){
+  const key = color + '|' + JSON.stringify(opts || {});
+  if (!MATS.has(key)) MATS.set(key, new THREE.MeshStandardMaterial(
+    Object.assign({ color, flatShading: true, roughness: 0.85, metalness: 0.02 }, opts || {})));
+  return MATS.get(key);
+}
+function finColor(hex){
+  const c = new THREE.Color(hex); c.offsetHSL(0, 0.05, -0.09); return c.getHex();
+}
+
+/* ================================================================
+   岛屿装饰：棕榈 / 木屋 / 珊瑚 / 海草 / 岩石
+================================================================ */
+const swayLeaves = [];   // 摇曳的棕榈叶
+function makePalm(scale = 1){
+  const g = new THREE.Group();
+  const trunkMat = mat(0x8a6a4a), leafMatA = mat(0x3fae5a), leafMatB = mat(0x5cc96e);
+  const bend = rand(-0.35, 0.35);
+  let y = 0;
+  const trunk = new THREE.Group();
+  for (let i = 0; i < 5; i++){
+    const seg = new THREE.Mesh(new THREE.CylinderGeometry(0.16 - i*0.014, 0.19 - i*0.014, 1.05, 5), trunkMat);
+    seg.position.set(bend * i * i * 0.09, y + 0.5, bend * 0.4 * i * i * 0.09);
+    seg.rotation.z = -bend * i * 0.1;
+    seg.castShadow = true;
+    trunk.add(seg); y += 1.0;
+  }
+  g.add(trunk);
+  const crown = new THREE.Group();
+  crown.position.set(bend * 16 * 0.09, y + 0.35, bend * 0.4 * 16 * 0.09);
+  for (let i = 0; i < 7; i++){
+    const a = (i / 7) * Math.PI * 2 + rand(-0.2, 0.2);
+    const leaf = new THREE.Mesh(new THREE.ConeGeometry(0.5, 3.3, 4), i % 2 ? leafMatA : leafMatB);
+    leaf.scale.set(1, 1, 0.16);
+    leaf.position.set(Math.cos(a) * 1.35, 0.1, Math.sin(a) * 1.35);
+    leaf.rotation.y = -a; leaf.rotation.x = Math.PI / 2 - 0.95 - rand(0, 0.25);
+    leaf.castShadow = true;
+    crown.add(leaf);
+  }
+  for (let i = 0; i < 3; i++){
+    const nut = new THREE.Mesh(new THREE.SphereGeometry(0.18, 6, 5), mat(0x6b4f33));
+    nut.position.set(rand(-0.3, 0.3), -0.1, rand(-0.3, 0.3));
+    crown.add(nut);
+  }
+  swayLeaves.push(crown);
+  g.add(crown);
+  g.scale.setScalar(scale);
+  return g;
+}
+
+function scatterOnIsland(count, minH, fn, minDist = 0){
+  const placed = [];
+  let tries = 0;
+  while (placed.length < count && tries++ < count * 40){
+    const isl = ISLANDS[Math.floor(Math.random() * Math.min(2, ISLANDS.length))];
+    const a = rand(0, Math.PI * 2), r = rand(0.1, 0.72) * isl[2];
+    const x = isl[0] + Math.cos(a) * r, z = isl[1] + Math.sin(a) * r;
+    const h = terrainHeight(x, z);
+    if (h < minH) continue;
+    if (minDist > 0 && placed.some(p => Math.hypot(p[0]-x, p[1]-z) < minDist)) continue;
+    placed.push([x, z, h]);
+    fn(x, z, h);
+  }
+}
+// 棕榈
+scatterOnIsland(13, 1.6, (x, z, h) => {
+  const p = makePalm(rand(0.8, 1.35));
+  p.position.set(x, h - 0.15, z); p.rotation.y = rand(0, 7);
+  scene.add(p);
+}, 9);
+
+// 高脚木屋（主岛朝向玩家出生方向）
+{
+  const c = ISLANDS[0];
+  const dir = new THREE.Vector2(-c[0], -c[1]).normalize();
+  const hx = c[0] + dir.x * c[2] * 0.55, hz = c[1] + dir.y * c[2] * 0.55;
+  const gh = terrainHeight(hx, hz);
+  const hut = new THREE.Group();
+  const wood = mat(0xb98d54), woodDark = mat(0x8a6a4a), wallM = mat(0xf0e3c0);
+  for (const [sx, sz] of [[-2.6,-1.7],[2.6,-1.7],[-2.6,1.7],[2.6,1.7]]){
+    const stilt = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.18, 2.6, 5), woodDark);
+    stilt.position.set(sx, -0.9, sz); stilt.castShadow = true; hut.add(stilt);
+  }
+  const deck = new THREE.Mesh(new THREE.BoxGeometry(7, 0.35, 4.6), wood);
+  deck.position.y = 0.4; deck.castShadow = deck.receiveShadow = true; hut.add(deck);
+  const body = new THREE.Mesh(new THREE.BoxGeometry(4.6, 2.5, 3.6), wallM);
+  body.position.set(-0.6, 1.85, 0); body.castShadow = true; hut.add(body);
+  const door = new THREE.Mesh(new THREE.BoxGeometry(1.0, 1.7, 0.12), mat(0x5f4a34));
+  door.position.set(1.55, 1.5, 0); hut.add(door);
+  const roof = new THREE.Mesh(new THREE.ConeGeometry(3.9, 2.1, 4), mat(0xb98d54));
+  roof.position.set(-0.6, 4.1, 0); roof.rotation.y = Math.PI / 4; roof.castShadow = true; hut.add(roof);
+  const win = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.9, 0.1), mat(0x7fc4d8));
+  win.position.set(-0.6, 2.1, 1.85); hut.add(win);
+  hut.position.set(hx, gh + 0.9, hz);
+  hut.rotation.y = Math.atan2(dir.x, dir.y) + Math.PI / 2;
+  scene.add(hut);
+}
+
+// 珊瑚（浅水区）
+const CORAL_COLORS = [0xc86bd8, 0xff7fb0, 0xff9a3d, 0x39c6b5, 0xf06292, 0x8e6bd8];
+function makeCoral(x, z, h){
+  const g = new THREE.Group();
+  const n = 1 + Math.floor(Math.random() * 3);
+  for (let i = 0; i < n; i++){
+    const col = CORAL_COLORS[Math.floor(Math.random() * CORAL_COLORS.length)];
+    const type = Math.floor(Math.random() * 4);
+    const m = mat(col, { roughness: 0.7 });
+    const piece = new THREE.Group();
+    piece.position.set(rand(-0.9, 0.9), 0, rand(-0.9, 0.9));
+    if (type === 0){ // 枝状
+      const bn = 3 + Math.floor(Math.random() * 4);
+      for (let b = 0; b < bn; b++){
+        const br = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.11, rand(0.5, 1.3), 5), m);
+        br.position.y = br.geometry.parameters.height / 2 - 0.05;
+        br.rotation.set(rand(-0.45, 0.45), rand(0, 7), rand(-0.45, 0.45));
+        piece.add(br);
+      }
+    } else if (type === 1){ // 脑状
+      const s = new THREE.Mesh(new THREE.SphereGeometry(rand(0.35, 0.7), 7, 5), m);
+      s.scale.y = 0.62; s.position.y = s.scale.y * s.geometry.parameters.radius * 0.6;
+      piece.add(s);
+    } else if (type === 2){ // 扇状
+      const s = new THREE.Mesh(new THREE.ConeGeometry(rand(0.45, 0.7), rand(0.8, 1.4), 5), m);
+      s.scale.z = 0.18; s.position.y = s.geometry.parameters.height / 2 - 0.05;
+      s.rotation.z = rand(-0.3, 0.3);
+      piece.add(s);
+    } else { // 管状
+      for (let t = 0; t < 3; t++){
+        const cy = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.14, rand(0.4, 1.0), 5), m);
+        cy.position.set(rand(-0.35, 0.35), cy.geometry.parameters.height/2 - 0.05, rand(-0.35, 0.35));
+        piece.add(cy);
+      }
+    }
+    g.add(piece);
+  }
+  g.position.set(x, h, z);
+  scene.add(g);
+}
+(function placeCorals(){
+  const placed = [];
+  let tries = 0;
+  while (placed.length < 46 && tries++ < 3000){
+    const x = rand(-210, 210), z = rand(-210, 210);
+    const h = terrainHeight(x, z);
+    if (h < -3.4 || h > -1.0) continue;
+    if (Math.hypot(x, z) > WORLD_R - 5) continue;
+    if (placed.some(p => Math.hypot(p[0]-x, p[1]-z) < 8)) continue;
+    placed.push([x, z]); makeCoral(x, z, h);
+  }
+})();
+
+// 海草（摇曳）
+const seaweeds = [];
+(function placeSeaweed(){
+  let placed = 0, tries = 0;
+  while (placed < 30 && tries++ < 2000){
+    const x = rand(-200, 200), z = rand(-200, 200);
+    const h = terrainHeight(x, z);
+    if (h < -4.2 || h > -1.4) continue;
+    const g = new THREE.Group();
+    const blades = 3 + Math.floor(Math.random() * 3);
+    for (let i = 0; i < blades; i++){
+      const gm = mat(i % 2 ? 0x2e9e5b : 0x3fc46e, { roughness: 0.9 });
+      const b = new THREE.Mesh(new THREE.ConeGeometry(rand(0.07, 0.13), rand(0.8, 2.0), 4), gm);
+      b.position.set(rand(-0.5, 0.5), b.geometry.parameters.height / 2, rand(-0.5, 0.5));
+      g.add(b);
+    }
+    g.position.set(x, h, z);
+    scene.add(g);
+    seaweeds.push({ g, phase: rand(0, 7) });
+    placed++;
+  }
+})();
+
+// 岩石
+(function placeRocks(){
+  let placed = 0, tries = 0;
+  while (placed < 22 && tries++ < 1500){
+    const x = rand(-200, 200), z = rand(-200, 200);
+    const h = terrainHeight(x, z);
+    if (h < -6 || h > -0.8) continue;
+    const r = new THREE.Mesh(new THREE.DodecahedronGeometry(rand(0.4, 1.3), 0), mat(0x7c8894));
+    r.scale.y = 0.72; r.position.set(x, h + 0.15, z);
+    r.rotation.set(rand(0, 3), rand(0, 3), rand(0, 3));
+    r.receiveShadow = true;
+    scene.add(r); placed++;
+  }
+})();
+
+// 云
+const clouds = [];
+{
+  const cm = new THREE.MeshStandardMaterial({ color: 0xffffff, flatShading: true, roughness: 1, fog: false });
+  for (let i = 0; i < 10; i++){
+    const c = new THREE.Group();
+    const n = 3 + Math.floor(Math.random() * 3);
+    for (let j = 0; j < n; j++){
+      const p = new THREE.Mesh(new THREE.SphereGeometry(rand(6, 11), 7, 5), cm);
+      p.position.set(j * rand(7, 10) - n * 4, rand(-2, 2), rand(-4, 4));
+      p.scale.y = 0.55; c.add(p);
+    }
+    c.position.set(rand(-350, 350), rand(75, 130), rand(-350, 350));
+    scene.add(c); clouds.push(c);
+  }
+}
+// 海鸥
+const gulls = [];
+{
+  const gm = new THREE.MeshStandardMaterial({ color: 0xffffff, flatShading: true, side: THREE.DoubleSide, fog: false });
+  for (let i = 0; i < 6; i++){
+    const g = new THREE.Group();
+    for (const s of [-1, 1]){
+      const wing = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 0.5), gm);
+      wing.position.x = s * 0.8;
+      const piv = new THREE.Group(); piv.add(wing); g.add(piv);
+      g.userData.wings = g.userData.wings || []; g.userData.wings.push(piv);
+    }
+    g.userData.a = rand(0, 7); g.userData.r = rand(60, 110); g.userData.spd = rand(0.15, 0.3);
+    g.userData.h = rand(26, 40);
+    gulls.push(g); scene.add(g);
+  }
+}
+
+/* ================================================================
+   物种定义
+================================================================ */
+const RARITY = [
+  { name: '普通', color: '#8fa3ad', prob: 1.00, pts: 10 },
+  { name: '优良', color: '#59c96b', prob: 0.90, pts: 25 },
+  { name: '稀有', color: '#4d9bff', prob: 0.62, pts: 60 },
+  { name: '史诗', color: '#b06cf0', prob: 0.40, pts: 150 },
+  { name: '传说', color: '#ffb020', prob: 0.28, pts: 400 },
+];
+const SPECIES = [
+  { id:'clown',  name:'小丑鱼',   emoji:'🐠', rarity:0, type:'fish',    color:0xff7a2a, band:0xffffff, size:0.55, speed:3.4, fleeSpd:8.0, fleeR:9.5, yMin:-1.0, yMax:-2.4, school:9,  target:9,  tailFreq:9 },
+  { id:'tang',   name:'蓝倒吊',   emoji:'🐟', rarity:0, type:'fish',    color:0x2f6fde, size:0.60, speed:3.8, fleeSpd:8.4, fleeR:9.5, yMin:-1.0, yMax:-2.6, school:9,  target:9,  tailFreq:9 },
+  { id:'yellow', name:'黄刺尾鱼', emoji:'🐟', rarity:0, type:'fish',    color:0xffd21f, size:0.55, speed:3.6, fleeSpd:8.2, fleeR:9.5, yMin:-1.2, yMax:-2.4, school:9,  target:9,  tailFreq:10 },
+  { id:'moon',   name:'银鲳',     emoji:'🐟', rarity:0, type:'fish',    color:0xcfd8e3, size:0.72, speed:3.1, fleeSpd:7.4, fleeR:9,   yMin:-1.6, yMax:-3.0, school:12, target:12, tailFreq:8 },
+  { id:'lion',   name:'狮子鱼',   emoji:'🐠', rarity:1, type:'fish',    color:0xe04f4f, band:0xfff3e0, spikes:true, size:0.72, speed:2.9, fleeSpd:7.2, fleeR:12, yMin:-2.0, yMax:-3.4, target:4, tailFreq:7 },
+  { id:'puffer', name:'河豚',     emoji:'🐡', rarity:1, type:'puffer',  color:0xcbe04f, size:0.58, speed:1.8, fleeSpd:5.4, fleeR:10, yMin:-1.4, yMax:-2.6, target:4, tailFreq:6 },
+  { id:'jelly',  name:'粉水母',   emoji:'🪼', rarity:1, type:'jelly',   color:0xff9ad5, size:0.85, speed:0.5, fleeSpd:1.1, fleeR:6,  yMin:-1.2, yMax:-2.4, target:5, tailFreq:2 },
+  { id:'turtle', name:'海龟',     emoji:'🐢', rarity:2, type:'turtle',  color:0x3f8f5a, size:1.05, speed:1.7, fleeSpd:4.4, fleeR:9,  yMin:-0.9, yMax:-1.6, target:2, tailFreq:3 },
+  { id:'ray',    name:'蝠鲼',     emoji:'🐋', rarity:2, type:'ray',     color:0x3a5f8f, size:1.5,  speed:3.0, fleeSpd:7.2, fleeR:14, yMin:-2.2, yMax:-3.6, target:2, tailFreq:2.5 },
+  { id:'dolph',  name:'海豚',     emoji:'🐬', rarity:2, type:'dolphin', color:0x7aa7d8, size:1.0,  speed:5.0, fleeSpd:10.2, fleeR:16, yMin:-1.4, yMax:-1.4, target:2, tailFreq:6 },
+  { id:'octo',   name:'章鱼',     emoji:'🐙', rarity:3, type:'octopus', color:0x9a5fd0, size:0.9,  speed:1.5, fleeSpd:4.6, fleeR:9,  yMin:-3.2, yMax:-4.0, target:1, tailFreq:3 },
+  { id:'shark',  name:'锤头鲨',   emoji:'🦈', rarity:4, type:'shark',   color:0x8a99a8, size:1.8,  speed:4.2, fleeSpd:9.6, fleeR:20, yMin:-1.3, yMax:-1.6, target:1, tailFreq:4, hp:3 },
+];
+const COLLECTIBLES = [
+  { id:'star',  name:'海星', emoji:'⭐', color:0xff8a5c, pts:5 },
+  { id:'shell', name:'贝壳', emoji:'🐚', color:0xffd9ec, pts:5 },
+];
+const SPEC_BY_ID = {}; SPECIES.forEach(s => SPEC_BY_ID[s.id] = s);
+
+/* ================================================================
+   生物建模
+================================================================ */
+function addEye(g, x, y, z, r){
+  const e = new THREE.Mesh(new THREE.SphereGeometry(r, 6, 5), mat(0x101820, { roughness: 0.4 }));
+  e.position.set(x, y, z); g.add(e);
+}
+function buildCreature(sp){
+  const s = sp.size;
+  const g = new THREE.Group();
+  const parts = { tail: null, extra: [], body: null };
+  const bodyMat = mat(sp.color);
+  const finMat = mat(finColor(sp.color));
+
+  if (sp.type === 'fish' || sp.type === 'puffer'){
+    const isP = sp.type === 'puffer';
+    const body = new THREE.Mesh(new THREE.SphereGeometry(isP ? 0.55 : 0.5, 8, 6), bodyMat);
+    body.scale.set(...(isP ? [s, s, s] : [0.62 * s, 0.95 * s, 1.7 * s]));
+    g.add(body); parts.body = body;
+    if (sp.band){
+      for (const bz of [0.18 * s, -0.3 * s]){
+        const b = new THREE.Mesh(new THREE.BoxGeometry(0.68 * s, 0.8 * s, 0.13 * s), mat(sp.band));
+        b.position.z = bz; g.add(b);
+      }
+    }
+    // 尾巴
+    const tailG = new THREE.Group(); tailG.position.z = -0.78 * s;
+    const tail = new THREE.Mesh(new THREE.ConeGeometry(0.34 * s, 0.62 * s, 4), finMat);
+    tail.geometry.rotateX(-Math.PI / 2);
+    tail.scale.set(0.16, 1.35, 1); tail.position.z = -0.26 * s;
+    tailG.add(tail); g.add(tailG); parts.tail = tailG;
+    if (!isP){
+      const dorsal = new THREE.Mesh(new THREE.ConeGeometry(0.24 * s, 0.45 * s, 4), finMat);
+      dorsal.position.set(0, 0.52 * s, -0.05 * s); dorsal.scale.z = 0.5;
+      if (sp.spikes) dorsal.visible = false;
+      g.add(dorsal);
+      for (const sd of [-1, 1]){
+        const p = new THREE.Mesh(new THREE.ConeGeometry(0.13 * s, 0.3 * s, 4), finMat);
+        p.position.set(sd * 0.3 * s, -0.08 * s, 0.2 * s);
+        p.rotation.z = sd * Math.PI / 2 * 0.8; p.scale.x = 0.4;
+        g.add(p);
+      }
+      if (sp.spikes){ // 狮子鱼背棘
+        for (let i = 0; i < 7; i++){
+          const zk = new THREE.Mesh(new THREE.ConeGeometry(0.035 * s, (0.5 - i * 0.04) * s, 4), finMat);
+          zk.position.set(0, 0.42 * s, (0.45 - i * 0.15) * s);
+          zk.rotation.x = -0.5;
+          g.add(zk);
+        }
+      }
+    } else { // 河豚刺
+      for (let i = 0; i < 10; i++){
+        const a = i * 2.399963, yy = Math.cos(a), rr = Math.sqrt(Math.max(0, 1 - yy * yy));
+        const th = new THREE.Mesh(new THREE.ConeGeometry(0.05 * s, 0.22 * s, 4), finMat);
+        th.position.set(Math.sin(a) * rr * 0.54 * s, yy * 0.54 * s, Math.cos(a) * rr * 0.54 * s);
+        th.lookAt(th.position.clone().multiplyScalar(2)); th.rotateX(Math.PI / 2);
+        g.add(th);
+      }
+    }
+    addEye(g, 0.22 * s, 0.13 * s, 0.5 * s, isP ? 0.09 * s : 0.07 * s);
+    addEye(g, -0.22 * s, 0.13 * s, 0.5 * s, isP ? 0.09 * s : 0.07 * s);
+
+  } else if (sp.type === 'jelly'){
+    const bellM = new THREE.MeshStandardMaterial({ color: sp.color, flatShading: true, transparent: true,
+      opacity: 0.62, roughness: 0.4, emissive: sp.color, emissiveIntensity: 0.3, side: THREE.DoubleSide });
+    const bell = new THREE.Mesh(new THREE.SphereGeometry(0.55 * s, 10, 7, 0, Math.PI * 2, 0, Math.PI * 0.55), bellM);
+    bell.scale.y = 0.85; g.add(bell); parts.body = bell;
+    const inner = new THREE.Mesh(new THREE.SphereGeometry(0.3 * s, 8, 6), bellM.clone());
+    inner.material.opacity = 0.3; inner.position.y = -0.05 * s; g.add(inner);
+    for (let i = 0; i < 6; i++){
+      const a = (i / 6) * Math.PI * 2;
+      const t = new THREE.Mesh(new THREE.CylinderGeometry(0.025 * s, 0.012 * s, 0.95 * s, 4), bellM.clone());
+      t.material.opacity = 0.5;
+      const tg = new THREE.Group();
+      tg.position.set(Math.cos(a) * 0.36 * s, -0.32 * s, Math.sin(a) * 0.36 * s);
+      t.position.y = -0.42 * s; tg.add(t);
+      g.add(tg); parts.extra.push(tg);
+    }
+
+  } else if (sp.type === 'turtle'){
+    const shell = new THREE.Mesh(new THREE.SphereGeometry(0.62 * s, 9, 6, 0, Math.PI * 2, 0, Math.PI * 0.52), mat(0x3f8f5a));
+    shell.scale.y = 0.6; shell.position.y = 0.02; g.add(shell);
+    const belly = new THREE.Mesh(new THREE.CylinderGeometry(0.6 * s, 0.55 * s, 0.16 * s, 8), mat(0x9fc48a));
+    belly.position.y = -0.06 * s; g.add(belly);
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.2 * s, 7, 6), mat(0x6fae6a));
+    head.position.set(0, 0.05 * s, 0.72 * s); g.add(head);
+    addEye(g, 0.1 * s, 0.12 * s, 0.85 * s, 0.045 * s);
+    addEye(g, -0.1 * s, 0.12 * s, 0.85 * s, 0.045 * s);
+    for (const [fx, fz] of [[0.5, 0.42], [-0.5, 0.42], [0.52, -0.38], [-0.52, -0.38]]){
+      const fl = new THREE.Mesh(new THREE.BoxGeometry(0.5 * s, 0.07 * s, 0.26 * s), mat(0x6fae6a));
+      const piv = new THREE.Group();
+      piv.position.set(Math.sign(fx) * 0.4 * s, 0, fz * s);
+      piv.rotation.y = Math.sign(fx) * 0.6;
+      fl.position.x = Math.sign(fx) * 0.22 * s;
+      piv.add(fl); g.add(piv);
+      parts.extra.push(piv);
+    }
+
+  } else if (sp.type === 'ray'){
+    const core = new THREE.Mesh(new THREE.SphereGeometry(0.5 * s, 8, 6), bodyMat);
+    core.scale.set(0.6, 0.28, 1.1); g.add(core);
+    for (const sd of [-1, 1]){
+      const wing = new THREE.Mesh(new THREE.SphereGeometry(0.55 * s, 7, 5), bodyMat);
+      wing.scale.set(1.5, 0.12, 1.0);
+      const piv = new THREE.Group();
+      piv.position.set(sd * 0.35 * s, 0, 0);
+      wing.position.x = sd * 0.75 * s;
+      piv.add(wing); g.add(piv);
+      parts.extra.push(piv);
+      const horn = new THREE.Mesh(new THREE.ConeGeometry(0.09 * s, 0.3 * s, 4), finMat);
+      horn.position.set(sd * 0.18 * s, 0, 0.55 * s); horn.rotation.x = Math.PI / 2;
+      g.add(horn);
+    }
+    const tl = new THREE.Mesh(new THREE.CylinderGeometry(0.02 * s, 0.05 * s, 1.7 * s, 5), finMat);
+    tl.geometry.rotateX(Math.PI / 2); tl.position.z = -1.3 * s; g.add(tl);
+    addEye(g, 0.16 * s, 0.12 * s, 0.42 * s, 0.05 * s);
+    addEye(g, -0.16 * s, 0.12 * s, 0.42 * s, 0.05 * s);
+
+  } else if (sp.type === 'dolphin'){
+    const body = new THREE.Mesh(new THREE.SphereGeometry(0.5 * s, 9, 7), bodyMat);
+    body.scale.set(0.55, 0.72, 1.95); g.add(body);
+    const snout = new THREE.Mesh(new THREE.ConeGeometry(0.15 * s, 0.55 * s, 6), bodyMat);
+    snout.geometry.rotateX(Math.PI / 2); snout.position.set(0, 0.02, 1.1 * s); g.add(snout);
+    const dorsal = new THREE.Mesh(new THREE.ConeGeometry(0.2 * s, 0.45 * s, 4), finMat);
+    dorsal.position.set(0, 0.42 * s, 0.1 * s); dorsal.rotation.x = -0.35; dorsal.scale.z = 0.4; g.add(dorsal);
+    const flukes = new THREE.Mesh(new THREE.ConeGeometry(0.4 * s, 0.45 * s, 4), finMat);
+    flukes.geometry.rotateX(-Math.PI / 2); flukes.scale.set(1.5, 0.18, 1); flukes.position.z = -1.05 * s;
+    g.add(flukes);
+    for (const sd of [-1, 1]){
+      const p = new THREE.Mesh(new THREE.ConeGeometry(0.14 * s, 0.42 * s, 4), finMat);
+      p.position.set(sd * 0.28 * s, -0.1 * s, 0.5 * s);
+      p.rotation.z = sd * Math.PI / 2 * 0.9; p.scale.x = 0.4;
+      g.add(p);
+    }
+    addEye(g, 0.18 * s, 0.14 * s, 0.72 * s, 0.06 * s);
+    addEye(g, -0.18 * s, 0.14 * s, 0.72 * s, 0.06 * s);
+
+  } else if (sp.type === 'octopus'){
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.52 * s, 9, 7), bodyMat);
+    head.scale.set(1, 1.12, 0.95); head.position.y = 0.15 * s; g.add(head); parts.body = head;
+    for (let i = 0; i < 6; i++){
+      const a = (i / 6) * Math.PI * 2;
+      const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.09 * s, 0.04 * s, 0.85 * s, 5), finMat);
+      const piv = new THREE.Group();
+      piv.position.set(Math.cos(a) * 0.3 * s, -0.1 * s, Math.sin(a) * 0.3 * s);
+      leg.position.y = -0.36 * s;
+      piv.rotation.z = Math.cos(a) * 0.55; piv.rotation.x = -Math.sin(a) * 0.55;
+      piv.add(leg); g.add(piv); parts.extra.push(piv);
+    }
+    const eyeW1 = new THREE.Mesh(new THREE.SphereGeometry(0.14 * s, 7, 6), mat(0xffffff));
+    eyeW1.position.set(0.2 * s, 0.05 * s, 0.45 * s); g.add(eyeW1);
+    const eyeW2 = eyeW1.clone(); eyeW2.position.x = -0.2 * s; g.add(eyeW2);
+    addEye(g, 0.2 * s, 0.05 * s, 0.55 * s, 0.06 * s);
+    addEye(g, -0.2 * s, 0.05 * s, 0.55 * s, 0.06 * s);
+
+  } else if (sp.type === 'shark'){
+    const body = new THREE.Mesh(new THREE.SphereGeometry(0.5 * s, 9, 7), bodyMat);
+    body.scale.set(0.55, 0.78, 2.05); g.add(body); parts.body = body;
+    const hammer = new THREE.Mesh(new THREE.BoxGeometry(1.15 * s, 0.3 * s, 0.42 * s), bodyMat);
+    hammer.position.z = 1.02 * s; g.add(hammer);
+    addEye(g, 0.52 * s, 0.06 * s, 1.02 * s, 0.07 * s);
+    addEye(g, -0.52 * s, 0.06 * s, 1.02 * s, 0.07 * s);
+    const dorsal = new THREE.Mesh(new THREE.ConeGeometry(0.32 * s, 0.8 * s, 4), finMat);
+    dorsal.position.set(0, 0.44 * s, 0.2 * s); dorsal.rotation.x = -0.25; dorsal.scale.z = 0.35; g.add(dorsal);
+    const tailG = new THREE.Group(); tailG.position.z = -0.98 * s;
+    const t1 = new THREE.Mesh(new THREE.ConeGeometry(0.3 * s, 0.62 * s, 4), finMat);
+    t1.geometry.rotateX(-Math.PI / 2); t1.scale.set(0.18, 1.5, 1); t1.position.set(0, 0.14 * s, -0.2 * s);
+    const t2 = new THREE.Mesh(new THREE.ConeGeometry(0.2 * s, 0.4 * s, 4), finMat);
+    t2.geometry.rotateX(-Math.PI / 2); t2.scale.set(0.18, 1.1, 1); t2.position.set(0, -0.1 * s, -0.14 * s);
+    tailG.add(t1); tailG.add(t2); g.add(tailG); parts.tail = tailG;
+    for (const sd of [-1, 1]){
+      const p = new THREE.Mesh(new THREE.ConeGeometry(0.22 * s, 0.6 * s, 4), finMat);
+      p.position.set(sd * 0.32 * s, -0.2 * s, 0.55 * s);
+      p.rotation.z = sd * Math.PI / 2 * 0.95; p.scale.x = 0.3;
+      g.add(p);
+    }
+  }
+  g.userData.parts = parts;
+  return g;
+}
+
+/* ================================================================
+   鱼群 AI
+================================================================ */
+const fishes = [];
+const schools = [];
+
+function randomWaterPoint(minDepth = -1.4, marginFromBoat = 40){
+  for (let i = 0; i < 40; i++){
+    const a = rand(0, Math.PI * 2), r = Math.sqrt(Math.random()) * (WORLD_R - 18);
+    const x = Math.cos(a) * r, z = Math.sin(a) * r;
+    if (terrainHeight(x, z) > minDepth) continue;
+    if (boat && Math.hypot(x - boat.position.x, z - boat.position.z) < marginFromBoat) continue;
+    return new THREE.Vector3(x, 0, z);
+  }
+  return new THREE.Vector3(0, 0, -80);
+}
+
+function spawnFish(spec, pos, school = null){
+  const g = buildCreature(spec);
+  const f = {
+    spec, g,
+    pos: new THREE.Vector3(pos.x, rand(spec.yMin, spec.yMax), pos.z),
+    heading: rand(0, Math.PI * 2),
+    speed: spec.speed,
+    state: 'wander', stateT: 0, phase: rand(0, 7),
+    baseScale: rand(0.88, 1.15),
+    hp: spec.hp || 1, school: null, offsetA: rand(0, Math.PI * 2), offsetR: 0,
+    wanderT: 0,
+  };
+  g.position.copy(f.pos);
+  g.scale.setScalar(f.baseScale);
+  scene.add(g);
+  fishes.push(f);
+  if (school){
+    f.school = school; school.members.push(f);
+    f.offsetR = rand(1.5, 4.5); f.offsetA = rand(0, Math.PI * 2);
+  }
+  return f;
+}
+function spawnSchool(spec, center){
+  const school = { spec, center: center.clone(), heading: rand(0, Math.PI * 2), members: [], turnT: 0 };
+  const n = spec.school || 8;
+  for (let i = 0; i < n; i++) spawnFish(spec, center, school);
+  schools.push(school);
+  return school;
+}
+function countAlive(id){ let n = 0; for (const f of fishes) if (f.spec.id === id) n++; return n; }
+
+function removeFish(f, caught){
+  const idx = fishes.indexOf(f); if (idx >= 0) fishes.splice(idx, 1);
+  if (f.school){
+    const si = f.school.members.indexOf(f); if (si >= 0) f.school.members.splice(si, 1);
+    if (f.school.members.length === 0){
+      const k = schools.indexOf(f.school); if (k >= 0) schools.splice(k, 1);
+    }
+  }
+  const g = f.g, t0 = performance.now() / 1000, sc = g.scale.x;
+  effects.push(dt => {
+    const e = performance.now() / 1000 - t0;
+    const k = clamp(e / 0.45, 0, 1);
+    g.scale.setScalar(sc * (1 - k));
+    g.position.y += dt * 3.5;
+    if (k >= 1){ scene.remove(g); return false; }
+    return true;
+  });
+}
+
+function updateFish(f, dt, t){
+  const sp = f.spec, p = f.pos;
+  // 逃跑触发
+  const bd = Math.hypot(p.x - boat.position.x, p.z - boat.position.z);
+  if (bd < sp.fleeR && f.state !== 'flee' && f.state !== 'tired'){
+    f.state = 'flee'; f.stateT = rand(1.8, 2.6);
+    f.heading = Math.atan2(p.x - boat.position.x, p.z - boat.position.z) + rand(-0.5, 0.5);
+  }
+  let targetSpeed = sp.speed;
+  if (f.state === 'flee'){
+    f.stateT -= dt;
+    targetSpeed = sp.fleeSpd;
+    if (f.stateT <= 0){ f.state = 'tired'; f.stateT = rand(1.4, 2.0); }
+  } else if (f.state === 'tired'){
+    f.stateT -= dt;
+    targetSpeed = sp.speed * 0.38;
+    if (f.stateT <= 0) f.state = 'wander';
+  }
+  if (sp.type === 'jelly'){
+    // 水母：缓慢漂移
+    f.heading += Math.sin(t * 0.3 + f.phase) * 0.25 * dt;
+    targetSpeed *= (f.state === 'flee') ? 1 : 0.9;
+  } else if (f.school && f.state === 'wander'){
+    // 鱼群：围绕群体中心
+    const c = f.school.center;
+    const tx = c.x + Math.sin(f.offsetA + t * 0.25) * f.offsetR;
+    const tz = c.z + Math.cos(f.offsetA + t * 0.25) * f.offsetR;
+    const want = Math.atan2(tx - p.x, tz - p.z);
+    let dA = want - f.heading;
+    while (dA > Math.PI) dA -= Math.PI * 2;
+    while (dA < -Math.PI) dA += Math.PI * 2;
+    f.heading += clamp(dA, -2.2 * dt, 2.2 * dt);
+    targetSpeed = sp.speed * (Math.hypot(tx - p.x, tz - p.z) > 6 ? 1.4 : 0.9);
+  } else if (f.state === 'wander'){
+    f.wanderT -= dt;
+    if (f.wanderT <= 0){ f.wanderT = rand(1.5, 4); f.turnDir = rand(-1, 1); }
+    f.heading += (f.turnDir || 0) * 0.8 * dt;
+  }
+  // 避开浅滩与边界
+  const ax = p.x + Math.sin(f.heading) * 6, az = p.z + Math.cos(f.heading) * 6;
+  if (terrainHeight(ax, az) > -1.0 || Math.hypot(ax, az) > WORLD_R - 12){
+    const want = Math.atan2(-p.x, -p.z);
+    let dA = want - f.heading;
+    while (dA > Math.PI) dA -= Math.PI * 2;
+    while (dA < -Math.PI) dA += Math.PI * 2;
+    f.heading += clamp(dA, -3.0 * dt, 3.0 * dt);
+    if (Math.hypot(p.x, p.z) > WORLD_R - 10){
+      p.x = clamp(p.x, -(WORLD_R - 10), WORLD_R - 10);
+      p.z = clamp(p.z, -(WORLD_R - 10), WORLD_R - 10);
+    }
+  }
+  f.speed += (targetSpeed - f.speed) * Math.min(1, dt * 3.5);
+  p.x += Math.sin(f.heading) * f.speed * dt;
+  p.z += Math.cos(f.heading) * f.speed * dt;
+  // 深度行为
+  let ty = f.posBaseY === undefined ? (f.posBaseY = p.y) : f.posBaseY;
+  if (sp.type === 'jelly'){ ty += Math.sin(t * 0.7 + f.phase) * 0.5; p.y += (ty - p.y) * Math.min(1, dt); }
+  else if (sp.type === 'dolphin'){
+    const arc = Math.sin(t * 0.9 + f.phase);
+    p.y = f.posBaseY + Math.max(0, arc) * 2.6 - 0.9;
+    f.g.rotation.x = -Math.cos(t * 0.9 + f.phase) * 0.55;
+  }
+  else p.y = f.posBaseY + Math.sin(t * 1.3 + f.phase) * 0.15;
+
+  f.g.position.copy(p);
+  if (sp.type !== 'jelly') f.g.rotation.y = f.heading;
+  // 动画
+  const parts = f.g.userData.parts;
+  const sw = Math.sin(t * sp.tailFreq * (f.state === 'flee' ? 1.8 : 1) + f.phase);
+  if (parts.tail) parts.tail.rotation.y = sw * 0.55;
+  if (sp.type === 'jelly'){
+    const pu = Math.sin(t * 2.6 + f.phase);
+    if (parts.body) parts.body.scale.set(0.55 * (1 + pu * 0.12), 0.85 * (1 - pu * 0.16), 0.55 * (1 + pu * 0.12));
+    parts.extra.forEach((tg, i) => { tg.rotation.x = Math.sin(t * 1.8 + i) * 0.25; tg.rotation.z = Math.cos(t * 1.5 + i) * 0.25; });
+    f.g.rotation.y += dt * 0.2;
+  } else if (sp.type === 'turtle'){
+    parts.extra.forEach((fl, i) => { fl.rotation.z = (i < 2 ? 1 : -1) * (0.2 + Math.sin(t * 2.4 + f.phase + i * 1.6) * 0.45); });
+  } else if (sp.type === 'ray'){
+    parts.extra.forEach((w, i) => { w.rotation.z = (i === 0 ? 1 : -1) * Math.sin(t * 2.2 + f.phase) * 0.4; });
+  } else if (sp.type === 'octopus'){
+    parts.extra.forEach((l, i) => { l.rotation.x += Math.sin(t * 3 + i * 1.1 + f.phase) * 0.5 * dt * 3; });
+  } else if (sp.type === 'puffer'){
+    const inflate = f.state === 'flee' ? 1 + Math.sin(t * 8) * 0.18 + 0.22 : 1;
+    f.g.scale.setScalar(f.baseScale * inflate);
+  }
+}
+
+function updateSchool(s, dt, t){
+  s.turnT -= dt;
+  if (s.turnT <= 0){ s.turnT = rand(2, 5); s.turnAmt = rand(-1, 1); }
+  s.heading += (s.turnAmt || 0) * 0.5 * dt;
+  const ax = s.center.x + Math.sin(s.heading) * 8, az = s.center.z + Math.cos(s.heading) * 8;
+  if (terrainHeight(ax, az) > -1.2 || Math.hypot(ax, az) > WORLD_R - 20){
+    const want = Math.atan2(-s.center.x, -s.center.z);
+    let dA = want - s.heading;
+    while (dA > Math.PI) dA -= Math.PI * 2;
+    while (dA < -Math.PI) dA += Math.PI * 2;
+    s.heading += clamp(dA, -1.5 * dt, 1.5 * dt);
+  }
+  s.center.x += Math.sin(s.heading) * s.spec.speed * 0.85 * dt;
+  s.center.z += Math.cos(s.heading) * s.spec.speed * 0.85 * dt;
+}
+
+/* ================================================================
+   小船
+================================================================ */
+const boat = new THREE.Group();
+{
+  const hullGeo = new THREE.CylinderGeometry(0.62, 0.95, 4.6, 6);
+  hullGeo.rotateX(Math.PI / 2);
+  const hull = new THREE.Mesh(hullGeo, mat(0x3f9e5d, { roughness: 0.6 }));
+  hull.scale.set(1.12, 0.72, 1); hull.position.y = 0.12;
+  hull.castShadow = true; boat.add(hull);
+  const deck = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.16, 3.7), mat(0xcaa070));
+  deck.position.y = 0.42; deck.castShadow = true; boat.add(deck);
+  const bow = new THREE.Mesh(new THREE.ConeGeometry(0.62, 0.9, 6), mat(0x3f9e5d, { roughness: 0.6 }));
+  bow.geometry.rotateX(Math.PI / 2); bow.scale.set(1.12, 0.72, 1);
+  bow.position.set(0, 0.12, 2.72); bow.castShadow = true; boat.add(bow);
+  const seat = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.5, 0.45), mat(0xb98d54));
+  seat.position.set(0, 0.7, -1.1); boat.add(seat);
+  const engine = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.55, 0.5), mat(0x37474f));
+  engine.position.set(0, 0.72, -2.05); boat.add(engine);
+  // 钓竿
+  const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.04, 2.4, 5), mat(0x5d4037));
+  rod.position.set(0.35, 1.3, 1.9); rod.rotation.x = 0.8; boat.add(rod);
+  // 旗杆
+  const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 1.5, 5), mat(0x8a6a4a));
+  pole.position.set(0, 1.4, -2.1); boat.add(pole);
+  const flag = new THREE.Mesh(new THREE.PlaneGeometry(0.7, 0.4), mat(0xe74c3c, { side: THREE.DoubleSide }));
+  flag.position.set(0.36, 1.9, -2.1); boat.add(flag);
+}
+boat.position.set(0, 0, -70);
+scene.add(boat);
+// 船底假阴影
+const blobShadow = (() => {
+  const cv = document.createElement('canvas'); cv.width = cv.height = 128;
+  const ctx = cv.getContext('2d');
+  const gr = ctx.createRadialGradient(64, 64, 8, 64, 64, 62);
+  gr.addColorStop(0, 'rgba(5,40,60,0.5)'); gr.addColorStop(1, 'rgba(5,40,60,0)');
+  ctx.fillStyle = gr; ctx.fillRect(0, 0, 128, 128);
+  const m = new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(cv), transparent: true, depthWrite: false });
+  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(7, 7), m);
+  mesh.rotation.x = -Math.PI / 2; mesh.position.y = -0.4; mesh.renderOrder = 3;
+  scene.add(mesh); return mesh;
+})();
+
+/* ================================================================
+   采集物（海星 / 贝壳）
+================================================================ */
+function makeStarMesh(color){
+  const shape = new THREE.Shape();
+  for (let i = 0; i < 10; i++){
+    const a = i * Math.PI / 5 - Math.PI / 2, r = i % 2 ? 0.18 : 0.45;
+    i ? shape.lineTo(Math.cos(a) * r, Math.sin(a) * r) : shape.moveTo(Math.cos(a) * r, Math.sin(a) * r);
+  }
+  const geo = new THREE.ExtrudeGeometry(shape, { depth: 0.14, bevelEnabled: true, bevelSize: 0.05, bevelThickness: 0.04, bevelSegments: 1 });
+  geo.rotateX(-Math.PI / 2);
+  return new THREE.Mesh(geo, mat(color, { roughness: 0.7 }));
+}
+function makeShellMesh(color){
+  const g = new THREE.Group();
+  const base = new THREE.Mesh(new THREE.SphereGeometry(0.32, 7, 5, 0, Math.PI * 2, 0, Math.PI / 2), mat(color, { roughness: 0.5 }));
+  base.scale.y = 0.7; g.add(base);
+  for (let i = -2; i <= 2; i++){
+    const rib = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.08, 0.3), mat(0xf5c1dd));
+    rib.position.set(i * 0.1, 0.16, 0.1); rib.rotation.x = -0.3;
+    g.add(rib);
+  }
+  return g;
+}
+const collectibles = [];
+function spawnCollectible(def){
+  for (let i = 0; i < 40; i++){
+    const a = rand(0, Math.PI * 2), r = Math.sqrt(Math.random()) * (WORLD_R - 20);
+    const x = Math.cos(a) * r, z = Math.sin(a) * r;
+    const h = terrainHeight(x, z);
+    if (h < -2.6 || h > -0.7) continue;
+    const m = def.id === 'star' ? makeStarMesh(def.color) : makeShellMesh(def.color);
+    m.position.set(x, h + 0.08, z);
+    m.rotation.y = rand(0, 7);
+    if (def.id === 'star') m.scale.setScalar(rand(0.8, 1.15));
+    scene.add(m);
+    collectibles.push({ def, m, alive: true, respawnT: 0, phase: rand(0, 7) });
+    return;
+  }
+}
+for (let i = 0; i < 16; i++) spawnCollectible(COLLECTIBLES[0]);
+for (let i = 0; i < 12; i++) spawnCollectible(COLLECTIBLES[1]);
+
+/* ================================================================
+   特效系统（尾流 / 撒网 / 粒子 / 提示圈）
+================================================================ */
+const effects = [];   // 每帧调用 fn(dt) -> alive
+const foamTex = (() => {
+  const cv = document.createElement('canvas'); cv.width = cv.height = 64;
+  const ctx = cv.getContext('2d');
+  const gr = ctx.createRadialGradient(32, 32, 2, 32, 32, 30);
+  gr.addColorStop(0, 'rgba(255,255,255,0.95)'); gr.addColorStop(0.7, 'rgba(255,255,255,0.4)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = gr; ctx.fillRect(0, 0, 64, 64);
+  return new THREE.CanvasTexture(cv);
+})();
+const foamPool = [];
+for (let i = 0; i < 42; i++){
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(1, 1),
+    new THREE.MeshBasicMaterial({ map: foamTex, transparent: true, depthWrite: false, opacity: 0 }));
+  m.rotation.x = -Math.PI / 2; m.renderOrder = 8; m.visible = false;
+  scene.add(m); foamPool.push(m);
+}
+function spawnFoam(x, z, size, life){
+  const m = foamPool.find(f => !f.visible); if (!m) return;
+  m.visible = true;
+  const t0 = performance.now() / 1000;
+  effects.push(dt => {
+    const e = performance.now() / 1000 - t0, k = e / life;
+    if (k >= 1){ m.visible = false; return false; }
+    const sc = size * (0.5 + k * 1.8);
+    m.scale.set(sc, sc, 1);
+    m.material.opacity = 0.75 * (1 - k);
+    m.position.set(x, waveY(x, z, simT) + 0.07, z);
+    return true;
+  });
+}
+// 小粒子（水花 / 收集星光）
+const partPool = [];
+{
+  const geo = new THREE.SphereGeometry(0.09, 5, 4);
+  for (let i = 0; i < 50; i++){
+    const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0 }));
+    m.visible = false; scene.add(m); partPool.push(m);
+  }
+}
+function burst(x, y, z, color, n = 10, up = 4){
+  for (let i = 0; i < n; i++){
+    const m = partPool.find(p => !p.visible); if (!m) break;
+    m.visible = true; m.material.color.set(color); m.material.opacity = 1;
+    m.position.set(x, y, z); m.scale.setScalar(rand(0.5, 1.4));
+    const vx = rand(-2, 2), vy = rand(up * 0.4, up), vz = rand(-2, 2);
+    const t0 = performance.now() / 1000, life = rand(0.5, 0.9);
+    effects.push(dt => {
+      const e = performance.now() / 1000 - t0, k = e / life;
+      if (k >= 1){ m.visible = false; return false; }
+      m.position.x += vx * dt; m.position.y += vy * dt; m.position.z += vz * dt;
+      m.position.y -= 9 * dt * dt * 30 * 0.5;
+      m.material.opacity = 1 - k;
+      return true;
+    });
+  }
+}
+// 撒网圆环
+const ringPool = [];
+for (let i = 0; i < 4; i++){
+  const m = new THREE.Mesh(new THREE.RingGeometry(0.9, 1, 48),
+    new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0, side: THREE.DoubleSide, depthWrite: false }));
+  m.rotation.x = -Math.PI / 2; m.renderOrder = 9; m.visible = false;
+  scene.add(m); ringPool.push(m);
+}
+function netRing(x, z, R, delay = 0){
+  const m = ringPool.find(r => !r.visible); if (!m) return;
+  m.visible = true;
+  const t0 = performance.now() / 1000 + delay;
+  effects.push(() => {
+    const e = performance.now() / 1000 - t0;
+    if (e < 0) return true;
+    const k = e / 0.9;
+    if (k >= 1){ m.visible = false; return false; }
+    const r = R * Math.min(1, k * 2.6);
+    m.scale.set(r, r, 1);
+    m.material.opacity = 0.85 * (1 - k);
+    m.position.set(x, waveY(x, z, simT) + 0.12, z);
+    return true;
+  });
+}
+// 传说生物标记
+const legendRing = new THREE.Mesh(new THREE.TorusGeometry(3.2, 0.18, 8, 40),
+  new THREE.MeshBasicMaterial({ color: 0xffd24a, transparent: true, opacity: 0.9 }));
+legendRing.rotation.x = -Math.PI / 2; legendRing.visible = false; legendRing.renderOrder = 9;
+scene.add(legendRing);
+let legendT = 0;
+
+// 撒网预览圈（船头方向、随等级成长的网范围；有鱼入网时变金色）
+const netPreview = new THREE.Mesh(new THREE.RingGeometry(0.93, 1, 56),
+  new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.3, side: THREE.DoubleSide, depthWrite: false }));
+netPreview.rotation.x = -Math.PI / 2; netPreview.visible = false; netPreview.renderOrder = 7;
+scene.add(netPreview);
+function updateNetPreview(t){
+  if (!state.started){ netPreview.visible = false; return; }
+  const fx = Math.sin(boat.rotation.y), fz = Math.cos(boat.rotation.y);
+  const px = boat.position.x + fx * 4.5, pz = boat.position.z + fz * 4.5;
+  const R = netRadius();
+  netPreview.visible = true;
+  netPreview.position.set(px, waveY(px, pz, t) + 0.14, pz);
+  netPreview.scale.set(R, R, 1);
+  if (netCD > 0){
+    netPreview.material.color.set(0xffffff);
+    netPreview.material.opacity = 0.10;
+  } else {
+    let inR = false;
+    for (const f of fishes){
+      if (Math.hypot(f.pos.x - px, f.pos.z - pz) < R){ inR = true; break; }
+    }
+    const pulse = 0.5 + Math.sin(t * 5) * 0.15;
+    netPreview.material.color.set(inR ? 0xffd24a : 0xffffff);
+    netPreview.material.opacity = inR ? pulse + 0.15 : 0.28;
+  }
+}
+
+/* ================================================================
+   声音（WebAudio 合成）
+================================================================ */
+let AC = null, MG = null, muted = false;
+function initAudio(){
+  if (!AC) {
+    try {
+      AC = new (window.AudioContext || window.webkitAudioContext)();
+      MG = AC.createGain();
+      MG.gain.value = muted ? 0 : 1;
+      MG.connect(AC.destination);
+    } catch(e){}
+  }
+}
+function tone(freq, dur, type = 'sine', vol = 0.16, delay = 0, slide = 0){
+  if (!AC) return;
+  const t0 = AC.currentTime + delay;
+  const o = AC.createOscillator(), gn = AC.createGain();
+  o.type = type; o.frequency.setValueAtTime(freq, t0);
+  if (slide) o.frequency.exponentialRampToValueAtTime(Math.max(40, freq + slide), t0 + dur);
+  gn.gain.setValueAtTime(vol, t0);
+  gn.gain.exponentialRampToValueAtTime(0.001, t0 + dur);
+  o.connect(gn).connect(MG || AC.destination);
+  o.start(t0); o.stop(t0 + dur + 0.05);
+}
+function sndCatch(r){
+  const base = [440, 494, 523, 587, 659][r] || 440;
+  tone(base, 0.12, 'triangle', 0.18);
+  tone(base * 1.25, 0.12, 'triangle', 0.16, 0.09);
+  if (r >= 2) tone(base * 1.5, 0.16, 'triangle', 0.16, 0.18);
+  if (r >= 4){ tone(base * 2, 0.3, 'triangle', 0.18, 0.27); tone(base * 2.5, 0.35, 'sine', 0.14, 0.36); }
+}
+function sndSplash(){
+  if (!AC) return;
+  const t0 = AC.currentTime, dur = 0.22;
+  const buf = AC.createBuffer(1, AC.sampleRate * dur, AC.sampleRate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / d.length);
+  const src = AC.createBufferSource(); src.buffer = buf;
+  const flt = AC.createBiquadFilter(); flt.type = 'bandpass'; flt.frequency.value = 900; flt.Q.value = 0.8;
+  const gn = AC.createGain(); gn.gain.setValueAtTime(0.25, t0);
+  gn.gain.exponentialRampToValueAtTime(0.001, t0 + dur);
+  src.connect(flt).connect(gn).connect(MG || AC.destination);
+  src.start(t0);
+}
+const sndCollect = () => { tone(880, 0.14, 'sine', 0.15); tone(1320, 0.2, 'sine', 0.12, 0.1); };
+const sndLevel  = () => { tone(523, 0.16, 'square', 0.08); tone(659, 0.16, 'square', 0.08, 0.13); tone(784, 0.3, 'square', 0.09, 0.26); };
+const sndMiss   = () => tone(300, 0.18, 'sawtooth', 0.07, 0, -140);
+
+/* ================================================================
+   UI：弹字 / 提示 / 图鉴 / 存档
+================================================================ */
+const popsEl = document.getElementById('pops');
+const toastEl = document.getElementById('toast');
+const _v = new THREE.Vector3();
+function popupAt3D(pos, html, color){
+  _v.copy(pos).project(camera);
+  if (_v.z > 1) return;
+  const x = (_v.x * 0.5 + 0.5) * innerWidth, y = (-_v.y * 0.5 + 0.5) * innerHeight;
+  const div = document.createElement('div');
+  div.className = 'pop'; div.style.left = x + 'px'; div.style.top = y + 'px';
+  div.style.color = color; div.innerHTML = html;
+  popsEl.appendChild(div);
+  setTimeout(() => div.remove(), 1400);
+}
+function toast(msg, gold = false){
+  const div = document.createElement('div');
+  div.className = 'toastItem' + (gold ? ' gold' : '');
+  div.innerHTML = msg;
+  toastEl.appendChild(div);
+  setTimeout(() => div.remove(), 2700);
+}
+
+const state = {
+  score: 0, level: 1, caught: 0,
+  collected: {},   // id -> count
+  started: false,
+};
+let save = { best: 0, collected: {} };
+try { save = Object.assign(save, JSON.parse(localStorage.getItem('coralchase_save') || '{}')); } catch(e){}
+state.collected = Object.assign({}, save.collected);
+muted = !!save.muted;
+function persist(){
+  save.best = Math.max(save.best, state.score);
+  save.collected = state.collected;
+  save.muted = muted;
+  try { localStorage.setItem('coralchase_save', JSON.stringify(save)); } catch(e){}
+}
+const discoveredCount = () => {
+  let n = 0;
+  for (const s of SPECIES) if (state.collected[s.id]) n++;
+  for (const c of COLLECTIBLES) if (state.collected[c.id]) n++;
+  return n;
+};
+function refreshHUD(){
+  document.getElementById('scoreTxt').textContent = state.score;
+  document.getElementById('lvTxt').textContent = state.level;
+  document.getElementById('bookCnt').textContent = discoveredCount() + '/' + (SPECIES.length + COLLECTIBLES.length);
+}
+function levelThreshold(lv){ return 150 * lv * (lv + 1) / 2; }
+function addScore(pts){
+  state.score += pts;
+  while (state.score >= levelThreshold(state.level)){
+    state.level++;
+    toast(`🎉 渔夫等级提升！ <b>Lv.${state.level}</b> 渔网更大、船速更快`);
+    sndLevel();
+  }
+  refreshHUD(); persist();
+}
+
+const bookEl = document.getElementById('book');
+function renderBook(){
+  const grid = document.getElementById('bookGrid');
+  grid.innerHTML = '';
+  const items = [...SPECIES.map(s => ({ ...s, kind: '捕捞' })), ...COLLECTIBLES.map(c => ({ ...c, rarity: 0, kind: '采集' }))];
+  for (const it of items){
+    const got = state.collected[it.id] || 0;
+    const card = document.createElement('div');
+    card.className = 'card' + (got ? '' : ' locked');
+    const rt = RARITY[it.rarity || 0];
+    card.innerHTML = `
+      ${it.kind === '采集' ? '<span class="tag">采集</span>' : ''}
+      <div class="em">${got ? it.emoji : '❓'}</div>
+      <div class="nm">${got ? it.name : '未知生物'}</div>
+      <span class="rt" style="background:${rt.color}">${rt.name}</span>
+      <div class="ct">${got ? `已获得 ${got}` : `${rt.pts} 分 / 只`}</div>`;
+    grid.appendChild(card);
+  }
+  const d = discoveredCount(), total = SPECIES.length + COLLECTIBLES.length;
+  document.getElementById('bookProgTxt').textContent = `收集进度 ${d} / ${total}`;
+  document.getElementById('bookProgFill').style.width = (d / total * 100) + '%';
+}
+document.getElementById('btnBook').addEventListener('click', () => {
+  renderBook(); bookEl.classList.add('open');
+});
+document.getElementById('bookClose').addEventListener('click', () => bookEl.classList.remove('open'));
+bookEl.addEventListener('click', e => { if (e.target === bookEl) bookEl.classList.remove('open'); });
+
+// 音效开关
+const btnSound = document.getElementById('btnSound');
+function refreshSoundBtn(){ btnSound.textContent = muted ? '🔇' : '🔊'; }
+btnSound.addEventListener('click', () => {
+  muted = !muted;
+  initAudio();
+  if (MG) MG.gain.value = muted ? 0 : 1;
+  persist(); refreshSoundBtn();
+  if (!muted) sndCollect();
+});
+refreshSoundBtn();
+
+// 清空存档
+document.getElementById('btnReset').addEventListener('click', () => {
+  if (!confirm('确定清空图鉴与最高分吗？（当前分数也会归零）')) return;
+  try { localStorage.removeItem('coralchase_save'); } catch(e){}
+  save = { best: 0, collected: {}, muted };
+  state.collected = {}; state.score = 0; state.level = 1; state.caught = 0;
+  refreshHUD(); renderBook(); toast('存档已清空');
+});
+
+/* ================================================================
+   输入
+================================================================ */
+const keys = {};
+addEventListener('keydown', e => {
+  if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(e.key)) e.preventDefault();
+  keys[e.key.toLowerCase()] = true;
+  if (e.key === 'Escape') bookEl.classList.remove('open');
+  if (e.key.toLowerCase() === 'c' && state.started){
+    bookEl.classList.toggle('open');
+    if (bookEl.classList.contains('open')) renderBook();
+  }
+});
+addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
+let camZoom = 1;
+addEventListener('wheel', e => { camZoom = clamp(camZoom + e.deltaY * 0.0008, 0.55, 1.7); }, { passive: true });
+
+// 触屏
+if ('ontouchstart' in window){
+  document.body.classList.add('touch');
+  document.getElementById('touch').style.display = 'block';
+  const bind = (id, key) => {
+    const el = document.getElementById(id);
+    el.addEventListener('pointerdown', e => { e.preventDefault(); keys[key] = true; });
+    el.addEventListener('pointerup',   () => keys[key] = false);
+    el.addEventListener('pointerleave',() => keys[key] = false);
+  };
+  bind('tUp', 'w'); bind('tDn', 's'); bind('tLf', 'a'); bind('tRt', 'd'); bind('tNet', ' ');
+}
+
+/* ================================================================
+   撒网捕捞
+================================================================ */
+let netCD = 0;
+const NET_CD = 2.2;
+function netRadius(){ return Math.min(7.0 + (state.level - 1) * 0.35, 11.0); }
+function boatMaxSpeed(){ return 12.5 * (1 + (state.level - 1) * 0.02); }
+
+let shallowWarnT = 0, edgeWarnT = 0;
+function castNet(){
+  if (netCD > 0) return;
+  netCD = NET_CD;
+  const fx = Math.sin(boat.rotation.y), fz = Math.cos(boat.rotation.y);
+  const cx = boat.position.x + fx * 4.5, cz = boat.position.z + fz * 4.5;
+  const R = netRadius();
+  netRing(cx, cz, R);
+  setTimeout(() => netRing(cx, cz, R * 0.6, 0.1), 60);
+  sndSplash();
+  burst(cx, 0.3, cz, 0xeafcff, 12, 5);
+  // 延迟判定（网张开）
+  setTimeout(() => {
+    let hits = 0, caught = 0;
+    for (let i = fishes.length - 1; i >= 0; i--){
+      const f = fishes[i];
+      const d = Math.hypot(f.pos.x - cx, f.pos.z - cz);
+      if (d > R) continue;
+      const rr = RARITY[f.spec.rarity];
+      if (f.spec.hp > 1){ // 锤头鲨需要多次命中
+        f.hp--;
+        popupAt3D(f.pos, `🦈 锤头鲨 受创！(${f.hp}/${f.spec.hp})`, '#ffd24a');
+        sndMiss();
+        f.state = 'flee'; f.stateT = 2.4;
+        f.heading = Math.atan2(f.pos.x - cx, f.pos.z - cz);
+        if (f.hp <= 0){ doCatch(f); caught++; }
+        continue;
+      }
+      if (Math.random() < rr.prob){
+        doCatch(f); caught++;
+      } else {
+        popupAt3D(f.pos, `${f.spec.name} 溜走了！`, '#b3c4ce');
+        sndMiss();
+        f.state = 'flee'; f.stateT = 2.2;
+        f.heading = Math.atan2(f.pos.x - cx, f.pos.z - cz) + rand(-0.6, 0.6);
+      }
+      hits++;
+    }
+    if (caught >= 2){
+      const bonus = caught * 5;
+      addScore(bonus);
+      popupAt3D(new THREE.Vector3(cx, 0.5, cz), `🎣 一网${caught}收！奖励 +${bonus}`, '#ffd24a');
+      tone(660, 0.2, 'triangle', 0.18, 0.3); tone(880, 0.25, 'triangle', 0.16, 0.42);
+    }
+    if (!hits) popupAt3D(new THREE.Vector3(cx, 0.5, cz), '空网…', '#e8f4f8');
+  }, 380);
+}
+function doCatch(f){
+  const rr = RARITY[f.spec.rarity];
+  state.collected[f.spec.id] = (state.collected[f.spec.id] || 0) + 1;
+  state.caught++;
+  addScore(rr.pts);
+  popupAt3D(f.pos, `+${rr.pts} ${f.spec.emoji} ${f.spec.name}`, rr.color);
+  burst(f.pos.x, f.pos.y + 0.5, f.pos.z, f.spec.color, 14, 5);
+  sndCatch(f.spec.rarity);
+  if (f.spec.rarity >= 3) toast(`${f.spec.emoji} 捕获<b>${rr.name}</b>生物 —— ${f.spec.name}！+${rr.pts}分`, true);
+  removeFish(f, true);
+  refreshHUD();
+}
+
+/* ================================================================
+   初始生成鱼群
+================================================================ */
+function initialSpawn(){
+  for (const sp of SPECIES){
+    if (sp.school){
+      let need = sp.target;
+      while (need > 0){
+        const c = randomWaterPoint(-1.4, 30);
+        spawnSchool(sp, c);
+        need -= (sp.school || 8);
+      }
+    } else {
+      for (let i = 0; i < sp.target; i++) spawnFish(sp, randomWaterPoint(sp.id === 'octo' ? -3.0 : -1.5, 30));
+    }
+  }
+}
+initialSpawn();
+
+// 补充生成器
+let spawnTimer = 0, legendTimer = 50;
+function spawnerUpdate(dt){
+  spawnTimer -= dt;
+  if (spawnTimer <= 0){
+    spawnTimer = 1.6;
+    for (const sp of SPECIES){
+      const alive = countAlive(sp.id);
+      if (alive >= sp.target) continue;
+      if (Math.random() > 0.5) continue;
+      if (sp.rarity >= 4) continue; // 传说单独控制
+      if (sp.school && alive === 0){
+        spawnSchool(sp, randomWaterPoint(-1.4, 55));
+      } else {
+        spawnFish(sp, randomWaterPoint(sp.id === 'octo' ? -3.0 : -1.5, 55));
+      }
+    }
+  }
+  // 锤头鲨：传说事件
+  legendTimer -= dt;
+  if (legendTimer <= 0 && countAlive('shark') === 0){
+    legendTimer = 75;
+    const c = randomWaterPoint(-3.5, 90);
+    const sh = spawnFish(SPEC_BY_ID.shark, c);
+    sh.posBaseY = -1.35;
+    toast('⚠️ 传说生物 <b>锤头鲨</b> 出现在远海！金色光环标记它的位置', true);
+    tone(180, 0.5, 'sawtooth', 0.1); tone(240, 0.5, 'sawtooth', 0.1, 0.3);
+    legendRing.position.set(c.x, 1.2, c.z);
+    legendRing.visible = true;
+    legendT = 12;
+  }
+  if (legendRing.visible && countAlive('shark') === 0) legendRing.visible = false;
+}
+
+/* ================================================================
+   小船物理与相机
+================================================================ */
+let boatSpeed = 0;
+const camPos = new THREE.Vector3(0, 60, -130);
+const camLook = new THREE.Vector3(0, 0, -70);
+let simT = 0;
+
+function updateBoat(dt, t){
+  const fwd = keys['w'] || keys['arrowup'] ? 1 : 0;
+  const back = keys['s'] || keys['arrowdown'] ? 1 : 0;
+  const left = keys['a'] || keys['arrowleft'] ? 1 : 0;
+  const right = keys['d'] || keys['arrowright'] ? 1 : 0;
+  const throttle = fwd - back;
+  const rudder = left - right;
+
+  const maxSp = boatMaxSpeed();
+  boatSpeed += (throttle * (throttle > 0 ? 9 : 5) - boatSpeed * 0.6) * dt;
+  boatSpeed = clamp(boatSpeed, -maxSp * 0.35, maxSp);
+  if (Math.abs(throttle) < 0.05) boatSpeed *= Math.pow(0.35, dt);
+  if (throttle > 0) boatSpeed = Math.min(boatSpeed, maxSp);
+
+  const turnRate = 1.5 * (0.25 + 0.75 * Math.min(1, Math.abs(boatSpeed) / 6));
+  boat.rotation.y += rudder * turnRate * dt * (boatSpeed < -0.2 ? -1 : 1);
+
+  const fx = Math.sin(boat.rotation.y), fz = Math.cos(boat.rotation.y);
+  const nx = boat.position.x + fx * boatSpeed * dt;
+  const nz = boat.position.z + fz * boatSpeed * dt;
+  // 浅水 / 边界
+  if (terrainHeight(nx, nz) > -0.55){
+    boatSpeed *= 0.5;
+    if (t - shallowWarnT > 2.5){ shallowWarnT = t; popupAt3D(boat.position, '水太浅了！', '#ffe08a'); }
+  } else {
+    boat.position.x = nx; boat.position.z = nz;
+  }
+  if (Math.hypot(boat.position.x, boat.position.z) > WORLD_R){
+    const a = Math.atan2(boat.position.x, boat.position.z);
+    boat.position.x = Math.sin(a) * WORLD_R; boat.position.z = Math.cos(a) * WORLD_R;
+    if (t - edgeWarnT > 3){ edgeWarnT = t; popupAt3D(boat.position, '已到海域边缘', '#bfe0ee'); }
+  }
+  // 随浪起伏
+  const wy = waveY(boat.position.x, boat.position.z, t);
+  const wyx = waveY(boat.position.x + 2, boat.position.z, t) - wy;
+  const wzz = waveY(boat.position.x, boat.position.z + 2, t) - wy;
+  boat.position.y = wy * 0.85 + 0.32;
+  boat.rotation.x = clamp(Math.cos(boat.rotation.y) * wyx * 0.4 - Math.sin(boat.rotation.y) * wzz * 0.4 + throttle * -0.06, -0.3, 0.3);
+  boat.rotation.z = clamp(-rudder * Math.min(1, boatSpeed / 8) * 0.18 - Math.cos(boat.rotation.y) * wzz * 0.3, -0.35, 0.35);
+
+  blobShadow.position.x = boat.position.x;
+  blobShadow.position.z = boat.position.z;
+  const depth = -terrainHeight(boat.position.x, boat.position.z);
+  blobShadow.material.opacity = clamp(0.5 - depth * 0.06, 0.08, 0.5);
+
+  // 尾流
+  if (Math.abs(boatSpeed) > 2.5 && Math.random() < dt * 22){
+    spawnFoam(boat.position.x - fx * 2.1 + rand(-0.6, 0.6), boat.position.z - fz * 2.1 + rand(-0.6, 0.6), rand(1.4, 2.2), 1.15);
+  }
+  if (Math.abs(boatSpeed) > 7 && Math.random() < dt * 10) spawnFoam(boat.position.x + fx * 2.4, boat.position.z + fz * 2.4, rand(0.8, 1.3), 0.7);
+}
+
+function updateCamera(dt){
+  const off = new THREE.Vector3(0, 46 * camZoom, -42 * camZoom);
+  const want = boat.position.clone().add(off);
+  camPos.lerp(want, 1 - Math.exp(-dt * 2.6));
+  camLook.lerp(boat.position, 1 - Math.exp(-dt * 4));
+  camera.position.copy(camPos);
+  camera.lookAt(camLook);
+  // 太阳阴影跟随
+  sun.position.set(boat.position.x + 120, 190, boat.position.z + 60);
+  sun.target.position.copy(boat.position);
+}
+
+/* ================================================================
+   小地图
+================================================================ */
+const mmCv = document.getElementById('minimap');
+const mmCtx = mmCv.getContext('2d');
+const MMR = 85, MMK = 85 / 250;
+function drawMinimap(t){
+  const ctx = mmCtx, R = MMR;
+  ctx.clearRect(0, 0, 170, 170);
+  ctx.save();
+  ctx.beginPath(); ctx.arc(R, R, R - 3, 0, Math.PI * 2); ctx.clip();
+  ctx.fillStyle = 'rgba(10,58,92,0.92)';
+  ctx.fillRect(0, 0, 170, 170);
+  const mx = x => R + x * MMK, my = z => R - z * MMK;
+  for (const b of BUMPS){
+    ctx.fillStyle = 'rgba(42,138,148,0.55)';
+    ctx.beginPath(); ctx.arc(mx(b[0]), my(b[1]), b[2] * MMK, 0, 7); ctx.fill();
+  }
+  for (const isl of ISLANDS){
+    ctx.fillStyle = 'rgba(240,220,160,0.95)';
+    ctx.beginPath(); ctx.arc(mx(isl[0]), my(isl[1]), isl[2] * 0.72 * MMK, 0, 7); ctx.fill();
+    ctx.fillStyle = 'rgba(88,172,88,0.95)';
+    ctx.beginPath(); ctx.arc(mx(isl[0]), my(isl[1]), isl[2] * 0.45 * MMK, 0, 7); ctx.fill();
+  }
+  ctx.fillStyle = '#ffcf7a';
+  for (const c of collectibles) if (c.alive)
+    ctx.fillRect(mx(c.m.position.x) - 1.5, my(c.m.position.z) - 1.5, 3, 3);
+  for (const f of fishes){
+    const r = f.spec.rarity;
+    ctx.globalAlpha = r === 0 ? 0.5 : 0.95;
+    ctx.fillStyle = RARITY[r].color;
+    ctx.beginPath();
+    ctx.arc(mx(f.pos.x), my(f.pos.z), r >= 3 ? 3.5 : r === 2 ? 2.6 : 2, 0, 7);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+  if (legendRing.visible){
+    ctx.strokeStyle = '#ffd24a'; ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(mx(legendRing.position.x), my(legendRing.position.z), 5 + Math.sin(t * 3) * 2, 0, 7);
+    ctx.stroke();
+  }
+  ctx.translate(mx(boat.position.x), my(boat.position.z));
+  ctx.rotate(boat.rotation.y);
+  ctx.fillStyle = '#ffffff';
+  ctx.beginPath();
+  ctx.moveTo(0, -6.5); ctx.lineTo(4.2, 5); ctx.lineTo(0, 2.6); ctx.lineTo(-4.2, 5);
+  ctx.closePath(); ctx.fill();
+  ctx.restore();
+}
+
+/* ================================================================
+   开始界面
+================================================================ */
+const startEl = document.getElementById('start');
+document.getElementById('startBest').innerHTML =
+  (save.best > 0 ? `🏆 最高分 ${save.best} · 图鉴 ${Object.keys(save.collected).length}/${SPECIES.length + COLLECTIBLES.length}` : '');
+document.getElementById('btnStart').addEventListener('click', () => {
+  initAudio();
+  state.started = true;
+  startEl.classList.add('hide');
+  toast('🚤 用 <b>WASD</b> 航行追逐鱼群，靠近后按<b>空格</b>撒网！');
+});
+refreshHUD();
+
+/* ================================================================
+   主循环
+================================================================ */
+const clock = new THREE.Clock();
+function animate(){
+  requestAnimationFrame(animate);
+  const dt = Math.min(clock.getDelta(), 0.05);
+  simT += dt;
+  const t = simT;
+
+  waterMat.uniforms.uTime.value = t;
+
+  if (state.started){
+    updateBoat(dt, t);
+    if (keys[' ']) castNet();
+    spawnerUpdate(dt);
+  } else {
+    boat.position.y = waveY(boat.position.x, boat.position.z, t) * 0.85 + 0.32;
+    boat.rotation.y += dt * 0.05;
+  }
+  netCD = Math.max(0, netCD - dt);
+  document.getElementById('netBar').style.width = ((1 - netCD / NET_CD) * 100) + '%';
+
+  for (let i = fishes.length - 1; i >= 0; i--) updateFish(fishes[i], dt, t);
+  for (const s of schools) updateSchool(s, dt, t);
+
+  // 采集物
+  for (const c of collectibles){
+    if (!c.alive){
+      c.respawnT -= dt;
+      if (c.respawnT <= 0){ c.alive = true; c.m.visible = true;
+        const p = randomWaterPoint(-0.7, 30);
+        c.m.position.set(p.x, terrainHeight(p.x, p.z) + 0.08, p.z);
+      }
+      continue;
+    }
+    c.m.rotation.y += dt * 0.6;
+    if (state.started && Math.hypot(c.m.position.x - boat.position.x, c.m.position.z - boat.position.z) < 3.8){
+      c.alive = false; c.m.visible = false; c.respawnT = 25;
+      state.collected[c.def.id] = (state.collected[c.def.id] || 0) + 1;
+      addScore(c.def.pts);
+      popupAt3D(c.m.position, `+${c.def.pts} ${c.def.emoji} ${c.def.name}`, '#ffd24a');
+      burst(c.m.position.x, 0.2, c.m.position.z, c.def.color, 8, 3.5);
+      sndCollect(); refreshHUD();
+    }
+  }
+
+  // 传说标记追踪
+  if (legendRing.visible){
+    const sh = fishes.find(f => f.spec.id === 'shark');
+    if (sh){
+      legendRing.position.set(sh.pos.x, 1.1, sh.pos.z);
+      const k = 1 + Math.sin(t * 3) * 0.15;
+      legendRing.scale.set(k, k, 1);
+      legendRing.material.opacity = 0.55 + Math.sin(t * 3) * 0.3;
+    }
+  }
+
+  // 环境
+  for (const sw of seaweeds) sw.g.rotation.z = Math.sin(t * 1.2 + sw.phase) * 0.16;
+  for (const cr of clouds){ cr.position.x += dt * 1.6; if (cr.position.x > 420) cr.position.x = -420; }
+  for (const gl of gulls){
+    gl.userData.a += dt * gl.userData.spd;
+    const cx = ISLANDS[0][0], cz = ISLANDS[0][1];
+    gl.position.set(cx + Math.cos(gl.userData.a) * gl.userData.r, gl.userData.h + Math.sin(t * 0.5 + gl.userData.r) * 2, cz + Math.sin(gl.userData.a) * gl.userData.r);
+    gl.rotation.y = -gl.userData.a;
+    const flap = Math.sin(t * 7 + gl.userData.r);
+    gl.userData.wings[0].rotation.z = flap * 0.55;
+    gl.userData.wings[1].rotation.z = -flap * 0.55;
+  }
+
+  // 特效
+  for (let i = effects.length - 1; i >= 0; i--) if (!effects[i](dt)) effects.splice(i, 1);
+
+  updateNetPreview(t);
+  drawMinimap(t);
+
+  updateCamera(dt);
+  renderer.render(scene, camera);
+}
+animate();
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+// 调试/测试钩子
+window.__game = { boat, fishes, state, castNet, netCD: () => netCD, simT: () => simT, collectibles };
+</script>
+</body>
+</html>
