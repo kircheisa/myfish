@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>碧海追鱼 · 珊瑚礁捕捞季</title>
 <style>
   * { margin:0; padding:0; box-sizing:border-box; }
@@ -16,27 +16,33 @@
     border-radius:999px; box-shadow:0 4px 18px rgba(10,60,90,.18); border:1px solid rgba(255,255,255,.65); }
 
   /* ---------- HUD ---------- */
-  #hud { position:fixed; inset:0; pointer-events:none; z-index:20; }
-  #hudTL { position:absolute; top:16px; left:16px; display:flex; gap:10px; align-items:center; }
+  #hud { position:fixed; inset:0; pointer-events:none; z-index:20;
+    --sa-t: env(safe-area-inset-top, 0px); --sa-r: env(safe-area-inset-right, 0px);
+    --sa-b: env(safe-area-inset-bottom, 0px); --sa-l: env(safe-area-inset-left, 0px); }
+  #hudTL { position:absolute; top:calc(16px + var(--sa-t)); left:calc(16px + var(--sa-l)); display:flex; gap:10px; align-items:center; }
   .pill { padding:9px 18px; font-size:16px; font-weight:700; color:#0c4a63; display:flex; gap:8px; align-items:center; }
   .pill small { font-weight:600; opacity:.75; font-size:12px; }
   #lvPill { background:rgba(255,225,150,.82); color:#7a4c00; }
-  #btnBook { position:absolute; top:16px; right:16px; pointer-events:auto; cursor:pointer;
+  #btnBook { position:absolute; top:calc(16px + var(--sa-t)); right:calc(16px + var(--sa-r)); pointer-events:auto; cursor:pointer;
     padding:10px 20px; font-size:15px; font-weight:700; color:#0c4a63; transition:transform .15s; }
   #btnBook:hover { transform:scale(1.06); }
   #btnBook .em { font-size:18px; }
-  #btnSound { position:absolute; top:64px; right:16px; pointer-events:auto; cursor:pointer;
+  #btnSound { position:absolute; top:calc(64px + var(--sa-t)); right:calc(16px + var(--sa-r)); pointer-events:auto; cursor:pointer;
     padding:7px 15px; font-size:16px; transition:transform .15s; }
   #btnSound:hover { transform:scale(1.08); }
 
   /* ---------- 小地图 ---------- */
-  #minimap { position:fixed; right:16px; bottom:16px; z-index:22; width:170px; height:170px;
-    border-radius:50%; pointer-events:none;
+  #minimap { position:fixed; right:calc(16px + env(safe-area-inset-right, 0px)); bottom:calc(16px + env(safe-area-inset-bottom, 0px));
+    z-index:22; width:170px; height:170px; border-radius:50%; pointer-events:none;
     box-shadow:0 6px 22px rgba(10,60,90,.30), inset 0 0 0 3px rgba(255,255,255,.55);
     background:rgba(10,50,80,.35); }
   body.touch #minimap { bottom:160px; }
+  @media (max-width: 720px){
+    #minimap { width:120px; height:120px; }
+    #hint { display:none; }
+  }
 
-  #hint { position:absolute; bottom:14px; left:50%; transform:translateX(-50%);
+  #hint { position:absolute; bottom:calc(14px + var(--sa-b)); left:50%; transform:translateX(-50%);
     padding:8px 20px; font-size:13px; color:#0c4a63; font-weight:600; white-space:nowrap; }
   kbd { background:#fff; border:1px solid #b9d6e2; border-bottom-width:2.5px; border-radius:6px;
     padding:1px 7px; font-family:inherit; font-size:12px; font-weight:800; color:#0c4a63; }
@@ -46,11 +52,22 @@
     overflow:hidden; border:1px solid rgba(255,255,255,.7); }
   #netBar { height:100%; width:0%; background:linear-gradient(90deg,#19b6c9,#0e8ea8); border-radius:99px; }
 
-  /* ---------- 弹出文字 ---------- */
+  /* ---------- 弹出文字（过冲弹出 + 上浮消散） ---------- */
   #pops { position:fixed; inset:0; pointer-events:none; z-index:30; overflow:hidden; }
-  .pop { position:absolute; transform:translate(-50%,-100%); font-weight:800; font-size:17px;
-    white-space:nowrap; text-shadow:0 2px 6px rgba(0,40,60,.35); animation:rise 1.35s ease-out forwards; }
-  @keyframes rise { 0%{opacity:0; margin-top:0;} 12%{opacity:1;} 75%{opacity:1;} 100%{opacity:0; margin-top:-72px;} }
+  .pop { position:absolute; transform:translate(-50%,-100%) scale(.4); font-weight:800; font-size:17px;
+    white-space:nowrap; text-shadow:0 2px 6px rgba(0,40,60,.35); animation:popRise 1.35s cubic-bezier(.22,1.2,.36,1) forwards; }
+  @keyframes popRise {
+    0%   { transform:translate(-50%,-100%) scale(.4);  opacity:0; margin-top:0; }
+    14%  { transform:translate(-50%,-100%) scale(1.18); opacity:1; }
+    26%  { transform:translate(-50%,-100%) scale(1); }
+    75%  { opacity:1; }
+    100% { transform:translate(-50%,-100%) scale(1);   opacity:0; margin-top:-72px; }
+  }
+  .pill.bump { animation:pillBump .32s cubic-bezier(.3,1.6,.5,1); }
+  @keyframes pillBump { 0%{transform:scale(1);} 45%{transform:scale(1.16);} 100%{transform:scale(1);} }
+
+  #flash { position:fixed; inset:0; background:#fff; opacity:0; pointer-events:none; z-index:18;
+    transition:opacity .09s ease-out; }
 
   #toast { position:fixed; top:22%; left:50%; transform:translateX(-50%); z-index:40; pointer-events:none;
     display:flex; flex-direction:column; gap:8px; align-items:center; }
@@ -128,6 +145,7 @@
 <body>
 <div id="app"></div>
 <div id="vig"></div>
+<div id="flash"></div>
 
 <div id="hud">
   <div id="hudTL">
@@ -193,11 +211,17 @@
 </script>
 
 <script type="importmap">
-{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js" } }
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  }
+}
 </script>
 
 <script type="module">
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
 /* ================================================================
    基础常量 / 工具
@@ -249,8 +273,8 @@ const fmtF = n => Number.isInteger(n) ? n + '.0' : n.toString();
    渲染器 / 场景 / 相机 / 灯光
 ================================================================ */
 const app = document.getElementById('app');
-const renderer = new THREE.WebGLRenderer({ antialias: true });
-renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
 renderer.setSize(innerWidth, innerHeight);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -274,6 +298,7 @@ sun.shadow.camera.left = -150; sun.shadow.camera.right = 150;
 sun.shadow.camera.top = 150;   sun.shadow.camera.bottom = -150;
 sun.shadow.camera.near = 20;   sun.shadow.camera.far = 600;
 sun.shadow.bias = -0.0006;
+sun.shadow.normalBias = 0.1;
 scene.add(sun); scene.add(sun.target);
 
 // 天空穹顶
@@ -330,9 +355,30 @@ scene.add(terrain);
 
 /* ================================================================
    水面（自定义着色器：深度渐变 + 岸边泡沫 + 波浪）
+   性能：地形高度预烘焙进 16 位定点 RGBA8 纹理（兼容性最好），
+   片元着色器只需 4 次双线性采样，替代每像素 50+ 次 sin 的解析地形求值。
 ================================================================ */
-const glslFieldCalls = FIELDS.map(f =>
-  `  h = max(h, islandField(x, z, ${fmtF(f[0])}, ${fmtF(f[1])}, ${fmtF(f[2])}, ${fmtF(f[3])}));`).join('\n');
+const HM_SIZE = 256;
+const heightTex = (() => {
+  const data = new Uint8Array(HM_SIZE * HM_SIZE * 4);   // R+G: 16位定点高度; B: 泡沫相位噪声; A: 填充
+  const H_MIN = -16, H_RANGE = 32;
+  for (let j = 0; j < HM_SIZE; j++){
+    const z = -TERR_SIZE/2 + TERR_SIZE * j / (HM_SIZE - 1);
+    for (let i = 0; i < HM_SIZE; i++){
+      const x = -TERR_SIZE/2 + TERR_SIZE * i / (HM_SIZE - 1);
+      const e = Math.round((terrainHeight(x, z) - H_MIN) / H_RANGE * 65535);
+      const noise = Math.round((Math.sin(x * 0.35) * 2 + Math.sin(z * 0.29) * 2 + 4) / 8 * 255);
+      const k = (j * HM_SIZE + i) * 4;
+      data[k] = e >> 8; data[k+1] = e & 255; data[k+2] = noise; data[k+3] = 255;
+    }
+  }
+  const tex = new THREE.DataTexture(data, HM_SIZE, HM_SIZE, THREE.RGBAFormat, THREE.UnsignedByteType);
+  tex.magFilter = THREE.NearestFilter;
+  tex.minFilter = THREE.NearestFilter;
+  tex.wrapS = tex.wrapT = THREE.ClampToEdgeWrapping;
+  tex.needsUpdate = true;
+  return tex;
+})();
 
 const waterVert = `
 uniform float uTime;
@@ -349,33 +395,33 @@ void main(){
 }`;
 const waterFrag = `
 uniform float uTime;
+uniform sampler2D uHeight;
 varying vec3 vWorld;
-float tnoise(float x, float z){
-  return ( sin(x*0.174 + z*0.211) + sin(x*0.071 - z*0.157 + 2.1)
-         + sin(x*0.043 + z*0.089 + 4.7)*1.4 + sin(x*0.312 - z*0.271 + 1.3)*0.5 ) / 3.9;
-}
-float islandField(float x, float z, float cx, float cz, float r, float top){
-  float d = length(vec2(x-cx, z-cz)) + tnoise(x*0.06+3.7, z*0.06-1.9)*10.0;
-  float k = 1.0 - smoothstep(r*0.35, r, d);
-  float topH = top + tnoise(x*0.09-4.2, z*0.09+8.8)*1.1;
-  return topH*k + (-1.2)*(1.0-k);
-}
-float terrainH(float x, float z){
-  float h = -8.0 + tnoise(x*0.045, z*0.045)*3.4 + tnoise(x*0.16+9.3, z*0.16-7.1)*0.7;
-${glslFieldCalls}
-  return h;
+float decH(vec4 t){ return (t.r * 256.0 + t.g) / 65535.0 * 32.0 - 16.0; }
+float decN(vec4 t){ return t.b * (8.0 / 255.0) - 4.0; }
+vec2 sampleHN(vec2 p){
+  vec2 t = (p + 280.0) / 560.0 * 256.0 - 0.5;
+  vec2 f = fract(t);
+  vec2 base = (floor(t) + 0.5) / 256.0;
+  vec4 s00 = texture2D(uHeight, base);
+  vec4 s10 = texture2D(uHeight, base + vec2(0.00390625, 0.0));
+  vec4 s01 = texture2D(uHeight, base + vec2(0.0, 0.00390625));
+  vec4 s11 = texture2D(uHeight, base + vec2(0.00390625, 0.00390625));
+  float h = mix(mix(decH(s00), decH(s10), f.x), mix(decH(s01), decH(s11), f.x), f.y);
+  float n = mix(mix(decN(s00), decN(s10), f.x), mix(decN(s01), decN(s11), f.x), f.y);
+  return vec2(h, n);
 }
 void main(){
-  float h = terrainH(vWorld.x, vWorld.z);
-  float depth = -h;
+  vec2 hn = sampleHN(vWorld.xz);
+  float depth = -hn.x;
   vec3 col = mix(vec3(0.29,0.88,0.78), vec3(0.10,0.65,0.75), smoothstep(0.25, 3.2, depth));
   col = mix(col, vec3(0.035,0.30,0.52), smoothstep(3.0, 9.5, depth));
   // 阳光碎光
   float sp = sin(vWorld.x*1.7 + uTime*2.0) * sin(vWorld.z*1.9 - uTime*1.7);
   col += vec3(0.09,0.10,0.08) * smoothstep(0.86, 1.0, sp);
-  // 岸边泡沫
+  // 岸边泡沫（相位噪声取自烘焙纹理）
   float band = 1.0 - smoothstep(0.12, 1.15, depth);
-  float fn = sin(depth*22.0 - uTime*2.4 + sin(vWorld.x*0.35)*2.0 + sin(vWorld.z*0.29)*2.0);
+  float fn = sin(depth*22.0 - uTime*2.4 + hn.y);
   float foam = clamp(band * smoothstep(0.05, 0.9, 0.55 + 0.45*fn), 0.0, 1.0);
   col = mix(col, vec3(0.97,0.99,1.0), foam);
   float alpha = mix(0.62, 0.93, smoothstep(0.2, 6.0, depth));
@@ -390,7 +436,7 @@ void main(){
 const waterGeo = new THREE.PlaneGeometry(TERR_SIZE, TERR_SIZE, 150, 150);
 waterGeo.rotateX(-Math.PI / 2);
 const waterMat = new THREE.ShaderMaterial({
-  uniforms: { uTime: { value: 0 } },
+  uniforms: { uTime: { value: 0 }, uHeight: { value: heightTex } },
   vertexShader: waterVert, fragmentShader: waterFrag,
   transparent: true, depthWrite: false,
 });
@@ -415,7 +461,7 @@ function finColor(hex){
 /* ================================================================
    岛屿装饰：棕榈 / 木屋 / 珊瑚 / 海草 / 岩石
 ================================================================ */
-const swayLeaves = [];   // 摇曳的棕榈叶
+const swayLeaves = [];   // （已静态合并，仅保留占位）
 function makePalm(scale = 1){
   const g = new THREE.Group();
   const trunkMat = mat(0x8a6a4a), leafMatA = mat(0x3fae5a), leafMatB = mat(0x5cc96e);
@@ -427,6 +473,7 @@ function makePalm(scale = 1){
     seg.position.set(bend * i * i * 0.09, y + 0.5, bend * 0.4 * i * i * 0.09);
     seg.rotation.z = -bend * i * 0.1;
     seg.castShadow = true;
+    seg.userData.mergeStatic = true;
     trunk.add(seg); y += 1.0;
   }
   g.add(trunk);
@@ -439,14 +486,15 @@ function makePalm(scale = 1){
     leaf.position.set(Math.cos(a) * 1.35, 0.1, Math.sin(a) * 1.35);
     leaf.rotation.y = -a; leaf.rotation.x = Math.PI / 2 - 0.95 - rand(0, 0.25);
     leaf.castShadow = true;
+    leaf.userData.mergeStatic = true;
     crown.add(leaf);
   }
   for (let i = 0; i < 3; i++){
     const nut = new THREE.Mesh(new THREE.SphereGeometry(0.18, 6, 5), mat(0x6b4f33));
     nut.position.set(rand(-0.3, 0.3), -0.1, rand(-0.3, 0.3));
+    nut.userData.mergeStatic = true;
     crown.add(nut);
   }
-  swayLeaves.push(crown);
   g.add(crown);
   g.scale.setScalar(scale);
   return g;
@@ -497,6 +545,7 @@ scatterOnIsland(13, 1.6, (x, z, h) => {
   win.position.set(-0.6, 2.1, 1.85); hut.add(win);
   hut.position.set(hx, gh + 0.9, hz);
   hut.rotation.y = Math.atan2(dir.x, dir.y) + Math.PI / 2;
+  hut.traverse(o => { if (o.isMesh) o.userData.mergeStatic = true; });
   scene.add(hut);
 }
 
@@ -538,6 +587,7 @@ function makeCoral(x, z, h){
     g.add(piece);
   }
   g.position.set(x, h, z);
+  g.traverse(o => { if (o.isMesh) o.userData.mergeStatic = true; });
   scene.add(g);
 }
 (function placeCorals(){
@@ -587,6 +637,7 @@ const seaweeds = [];
     r.scale.y = 0.72; r.position.set(x, h + 0.15, z);
     r.rotation.set(rand(0, 3), rand(0, 3), rand(0, 3));
     r.receiveShadow = true;
+    r.userData.mergeStatic = true;
     scene.add(r); placed++;
   }
 })();
@@ -1236,9 +1287,9 @@ function tone(freq, dur, type = 'sine', vol = 0.16, delay = 0, slide = 0){
 }
 function sndCatch(r){
   const base = [440, 494, 523, 587, 659][r] || 440;
-  tone(base, 0.12, 'triangle', 0.18);
-  tone(base * 1.25, 0.12, 'triangle', 0.16, 0.09);
-  if (r >= 2) tone(base * 1.5, 0.16, 'triangle', 0.16, 0.18);
+  tone(base * rand(0.94, 1.06), 0.12, 'triangle', 0.18);
+  tone(base * rand(0.94, 1.06) * 1.25, 0.12, 'triangle', 0.16, 0.09);
+  if (r >= 2) tone(base * rand(0.94, 1.06) * 1.5, 0.16, 'triangle', 0.16, 0.18);
   if (r >= 4){ tone(base * 2, 0.3, 'triangle', 0.18, 0.27); tone(base * 2.5, 0.35, 'sine', 0.14, 0.36); }
 }
 function sndSplash(){
@@ -1248,15 +1299,15 @@ function sndSplash(){
   const d = buf.getChannelData(0);
   for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / d.length);
   const src = AC.createBufferSource(); src.buffer = buf;
-  const flt = AC.createBiquadFilter(); flt.type = 'bandpass'; flt.frequency.value = 900; flt.Q.value = 0.8;
+  const flt = AC.createBiquadFilter(); flt.type = 'bandpass'; flt.frequency.value = 800 * rand(0.9, 1.2); flt.Q.value = 0.8;
   const gn = AC.createGain(); gn.gain.setValueAtTime(0.25, t0);
   gn.gain.exponentialRampToValueAtTime(0.001, t0 + dur);
   src.connect(flt).connect(gn).connect(MG || AC.destination);
   src.start(t0);
 }
-const sndCollect = () => { tone(880, 0.14, 'sine', 0.15); tone(1320, 0.2, 'sine', 0.12, 0.1); };
+const sndCollect = () => { const jp = rand(0.94, 1.06); tone(880 * jp, 0.14, 'sine', 0.15); tone(1320 * jp, 0.2, 'sine', 0.12, 0.1); };
 const sndLevel  = () => { tone(523, 0.16, 'square', 0.08); tone(659, 0.16, 'square', 0.08, 0.13); tone(784, 0.3, 'square', 0.09, 0.26); };
-const sndMiss   = () => tone(300, 0.18, 'sawtooth', 0.07, 0, -140);
+const sndMiss   = () => tone(300 * rand(0.94, 1.06), 0.18, 'sawtooth', 0.07, 0, -140);
 
 /* ================================================================
    UI：弹字 / 提示 / 图鉴 / 存档
@@ -1280,6 +1331,12 @@ function toast(msg, gold = false){
   div.innerHTML = msg;
   toastEl.appendChild(div);
   setTimeout(() => div.remove(), 2700);
+}
+// 冲击白闪（仅大型事件，短促后回归）
+const flashEl = document.getElementById('flash');
+function flashScreen(a){
+  flashEl.style.opacity = a;
+  setTimeout(() => flashEl.style.opacity = 0, 90);
 }
 
 const state = {
@@ -1317,6 +1374,9 @@ function addScore(pts){
     sndLevel();
   }
   refreshHUD(); persist();
+  // 得分弹跳（过冲回弹）
+  const pill = document.getElementById('scoreTxt').parentElement;
+  pill.classList.remove('bump'); void pill.offsetWidth; pill.classList.add('bump');
 }
 
 const bookEl = document.getElementById('book');
@@ -1375,6 +1435,10 @@ const keys = {};
 addEventListener('keydown', e => {
   if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(e.key)) e.preventDefault();
   keys[e.key.toLowerCase()] = true;
+  if ((e.key === 'Enter' || e.key === ' ') && !state.started){
+    document.getElementById('btnStart').click();
+    return;
+  }
   if (e.key === 'Escape') bookEl.classList.remove('open');
   if (e.key.toLowerCase() === 'c' && state.started){
     bookEl.classList.toggle('open');
@@ -1429,6 +1493,7 @@ function castNet(){
         f.hp--;
         popupAt3D(f.pos, `🦈 锤头鲨 受创！(${f.hp}/${f.spec.hp})`, '#ffd24a');
         sndMiss();
+        addTrauma(0.22);
         f.state = 'flee'; f.stateT = 2.4;
         f.heading = Math.atan2(f.pos.x - cx, f.pos.z - cz);
         if (f.hp <= 0){ doCatch(f); caught++; }
@@ -1449,6 +1514,8 @@ function castNet(){
       addScore(bonus);
       popupAt3D(new THREE.Vector3(cx, 0.5, cz), `🎣 一网${caught}收！奖励 +${bonus}`, '#ffd24a');
       tone(660, 0.2, 'triangle', 0.18, 0.3); tone(880, 0.25, 'triangle', 0.16, 0.42);
+      if (caught >= 3){ addTrauma(0.35); hitStop(0.07); }
+      else addTrauma(0.18);
     }
     if (!hits) popupAt3D(new THREE.Vector3(cx, 0.5, cz), '空网…', '#e8f4f8');
   }, 380);
@@ -1461,10 +1528,65 @@ function doCatch(f){
   popupAt3D(f.pos, `+${rr.pts} ${f.spec.emoji} ${f.spec.name}`, rr.color);
   burst(f.pos.x, f.pos.y + 0.5, f.pos.z, f.spec.color, 14, 5);
   sndCatch(f.spec.rarity);
+  // 分层反馈：越稀有冲击越强（震动/顿帧/白闪按重要性缩放）
+  if (f.spec.rarity >= 4){ addTrauma(0.8); hitStop(0.14); flashScreen(0.5); }
+  else if (f.spec.rarity === 3){ addTrauma(0.55); hitStop(0.1); flashScreen(0.35); }
+  else if (f.spec.rarity === 2){ addTrauma(0.3); }
+  else addTrauma(0.12);
   if (f.spec.rarity >= 3) toast(`${f.spec.emoji} 捕获<b>${rr.name}</b>生物 —— ${f.spec.name}！+${rr.pts}分`, true);
   removeFish(f, true);
   refreshHUD();
 }
+
+/* ================================================================
+   静态几何合并（性能：大幅降低 draw call）
+================================================================ */
+(function mergeStaticGeometry(){
+  // 1) 世界空间静态物：棕榈 / 木屋 / 珊瑚 / 岩石 —— 按材质合并为整块
+  scene.updateMatrixWorld(true);
+  const byMat = new Map();
+  const victims = [];
+  scene.traverse(o => { if (o.isMesh && o.userData.mergeStatic) victims.push(o); });
+  for (const m of victims){
+    const g = m.geometry.clone().applyMatrix4(m.matrixWorld);
+    g.deleteAttribute('uv');
+    const key = m.material.uuid;
+    if (!byMat.has(key)) byMat.set(key, { material: m.material, geos: [], cast: false, receive: false });
+    const rec = byMat.get(key);
+    rec.geos.push(g.index ? g.toNonIndexed() : g);
+    rec.cast = rec.cast || m.castShadow;
+    rec.receive = rec.receive || m.receiveShadow;
+    m.parent.remove(m);
+  }
+  for (const rec of byMat.values()){
+    if (rec.geos.length === 0) continue;
+    const merged = mergeGeometries(rec.geos, false);
+    if (!merged) continue;
+    const mesh = new THREE.Mesh(merged, rec.material);
+    mesh.castShadow = rec.cast;
+    mesh.receiveShadow = rec.receive;
+    scene.add(mesh);
+  }
+  // 2) 海草：组内按材质合并（保留整组摇曳动画）
+  for (const sw of seaweeds){
+    sw.g.updateMatrixWorld(true);
+    const groups = new Map();
+    const kids = [];
+    sw.g.traverse(o => { if (o.isMesh) kids.push(o); });
+    for (const k of kids){
+      const g = k.geometry.clone().applyMatrix4(k.matrix);
+      g.deleteAttribute('uv');
+      const key = k.material.uuid;
+      if (!groups.has(key)) groups.set(key, { material: k.material, geos: [] });
+      groups.get(key).geos.push(g.index ? g.toNonIndexed() : g);
+      sw.g.remove(k);
+    }
+    for (const rec of groups.values()){
+      const merged = mergeGeometries(rec.geos, false);
+      if (merged) sw.g.add(new THREE.Mesh(merged, rec.material));
+    }
+  }
+})();
 
 /* ================================================================
    初始生成鱼群
@@ -1525,7 +1647,15 @@ function spawnerUpdate(dt){
 let boatSpeed = 0;
 const camPos = new THREE.Vector3(0, 60, -130);
 const camLook = new THREE.Vector3(0, 0, -70);
+const _camWant = new THREE.Vector3(), _lookWant = new THREE.Vector3();
+let camTrauma = 0, camShakeT = 0;
 let simT = 0;
+
+// 屏幕震动：叠加在平滑跟随之后（只动相机视觉，不动模拟本体）
+function addTrauma(a){ camTrauma = Math.min(1, camTrauma + a); }
+// 顿帧：短暂降低时间流速传达冲击感（冷却等真实时间不受影响）
+let hitStopT = 0;
+function hitStop(d){ hitStopT = Math.max(hitStopT, d); }
 
 function updateBoat(dt, t){
   const fwd = keys['w'] || keys['arrowup'] ? 1 : 0;
@@ -1580,12 +1710,24 @@ function updateBoat(dt, t){
 }
 
 function updateCamera(dt){
-  const off = new THREE.Vector3(0, 46 * camZoom, -42 * camZoom);
-  const want = boat.position.clone().add(off);
-  camPos.lerp(want, 1 - Math.exp(-dt * 2.6));
-  camLook.lerp(boat.position, 1 - Math.exp(-dt * 4));
+  // 预瞄：相机看向船行进方向前方，随速度平滑拉伸视野
+  const fx = Math.sin(boat.rotation.y), fz = Math.cos(boat.rotation.y);
+  const lead = Math.min(Math.abs(boatSpeed) * 0.5, 9);
+  _lookWant.set(boat.position.x + fx * lead, boat.position.y, boat.position.z + fz * lead);
+  _camWant.set(_lookWant.x, _lookWant.y + 46 * camZoom, _lookWant.z - 42 * camZoom);
+  camPos.lerp(_camWant, 1 - Math.exp(-dt * 2.6));
+  camLook.lerp(_lookWant, 1 - Math.exp(-dt * 4));
   camera.position.copy(camPos);
   camera.lookAt(camLook);
+  if (camTrauma > 0){
+    camTrauma = Math.max(0, camTrauma - 1.5 * dt);
+    const sh = camTrauma * camTrauma;   // 平方：小事件几乎不震，大事件冲击强
+    camShakeT += dt * 34;
+    camera.position.x += 1.5 * sh * Math.sin(camShakeT * 1.7);
+    camera.position.y += 1.0 * sh * Math.sin(camShakeT * 2.3);
+    camera.position.z += 1.1 * sh * Math.sin(camShakeT * 1.1);
+    camera.rotation.z += 0.022 * sh * Math.sin(camShakeT * 1.3);
+  }
   // 太阳阴影跟随
   sun.position.set(boat.position.x + 120, 190, boat.position.z + 60);
   sun.target.position.copy(boat.position);
@@ -1660,9 +1802,13 @@ refreshHUD();
    主循环
 ================================================================ */
 const clock = new THREE.Clock();
+let fpsFrames = 0, fpsTime = 0, fpsVal = 0;
+const netBarEl = document.getElementById('netBar');
 function animate(){
   requestAnimationFrame(animate);
-  const dt = Math.min(clock.getDelta(), 0.05);
+  const rawDt = Math.min(clock.getDelta(), 0.05);
+  let dt = rawDt;
+  if (hitStopT > 0){ hitStopT -= rawDt; dt = rawDt * 0.06; }   // 顿帧：时间近乎冻结
   simT += dt;
   const t = simT;
 
@@ -1676,8 +1822,11 @@ function animate(){
     boat.position.y = waveY(boat.position.x, boat.position.z, t) * 0.85 + 0.32;
     boat.rotation.y += dt * 0.05;
   }
-  netCD = Math.max(0, netCD - dt);
-  document.getElementById('netBar').style.width = ((1 - netCD / NET_CD) * 100) + '%';
+  netCD = Math.max(0, netCD - rawDt);
+  netBarEl.style.width = ((1 - netCD / NET_CD) * 100) + '%';
+
+  fpsFrames++; fpsTime += rawDt;
+  if (fpsTime >= 0.5){ fpsVal = fpsFrames / fpsTime; fpsFrames = 0; fpsTime = 0; }
 
   for (let i = fishes.length - 1; i >= 0; i--) updateFish(fishes[i], dt, t);
   for (const s of schools) updateSchool(s, dt, t);
@@ -1745,7 +1894,11 @@ addEventListener('resize', () => {
 });
 
 // 调试/测试钩子
-window.__game = { boat, fishes, state, castNet, netCD: () => netCD, simT: () => simT, collectibles };
+window.__game = {
+  boat, fishes, state, castNet, netCD: () => netCD, simT: () => simT, collectibles,
+  stats: () => ({ fps: +fpsVal.toFixed(1), drawCalls: renderer.info.render.calls, triangles: renderer.info.render.triangles }),
+  addTrauma, hitStop,
+};
 </script>
 </body>
 </html>
