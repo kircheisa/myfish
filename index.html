@@ -98,6 +98,29 @@
 
   #hint { position:absolute; bottom:calc(14px + var(--sa-b)); left:50%; transform:translateX(-50%);
     padding:8px 20px; font-size:13px; color:var(--txt2); font-weight:600; white-space:nowrap; }
+
+  /* ---------- 目标面板（教学 + 订单） ---------- */
+  #goalPanel { position:absolute; top:calc(14px + var(--sa-t)); left:50%; transform:translateX(-50%);
+    display:flex; flex-direction:column; gap:6px; align-items:center; pointer-events:none; max-width:min(540px, 60vw); }
+  .goalChip { display:flex; align-items:center; gap:8px; padding:6px 14px; font-size:13px; font-weight:600; color:var(--txt);
+    background:linear-gradient(180deg, rgba(10,34,52,.9), rgba(6,22,36,.84)); border:1px solid rgba(79,216,232,.4);
+    border-radius:8px; backdrop-filter:blur(8px);
+    box-shadow:0 3px 10px rgba(0,10,25,.45), inset 0 1px 0 rgba(140,220,255,.2);
+    clip-path:polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px); }
+  .goalChip.tut { border-color:rgba(245,166,35,.6); }
+  .goalChip em.prog { font-style:normal; font-family:'Share Tech Mono',monospace; color:var(--acc); }
+  .goalChip b { color:#ffd98a; font-family:'Share Tech Mono',monospace; font-size:12px; }
+  .goalChip.done { border-color:rgba(120,230,160,.65); animation:goalPop .55s ease; }
+  @keyframes goalPop { 30% { transform:scale(1.12); } }
+  #streakChip { display:none; padding:8px 14px; }
+  #streakChip.show { display:flex; }
+  #streakN { font-family:'Share Tech Mono',monospace; color:#ff9a5c; font-size:16px; }
+  #streakBar { width:36px; height:5px; border-radius:99px; background:rgba(255,154,92,.2); overflow:hidden; }
+  #streakFill { height:100%; background:linear-gradient(90deg,#ff9a5c,#ffd24a); border-radius:99px; }
+  @media (max-width: 860px){
+    #goalPanel { top:auto; bottom:118px; left:12px; transform:none; align-items:flex-start; max-width:52vw; }
+    .goalChip { font-size:11px; padding:5px 10px; gap:6px; }
+  }
   kbd { background:rgba(10,42,62,.9); border:1px solid rgba(79,216,232,.4); border-bottom-width:2.5px; border-radius:6px;
     padding:1px 7px; font-family:'Share Tech Mono',monospace; font-size:12px; font-weight:700; color:var(--acc); }
 
@@ -214,7 +237,9 @@
   <div id="hudTL">
     <div class="pill glass">🎣 <span id="scoreTxt">0</span><small>分</small></div>
     <div class="pill glass" id="lvPill">Lv.<span id="lvTxt">1</span> <small>渔夫</small></div>
+    <div class="pill glass" id="streakChip">🔥<b id="streakN">2</b><div id="streakBar"><div id="streakFill"></div></div></div>
   </div>
+  <div id="goalPanel"></div>
   <div id="btnBook" class="glass"><span class="em">📖</span> 图鉴 <span id="bookCnt">0/18</span></div>
   <div id="btnSound" class="glass" title="音效开关">🔊</div>
 
@@ -337,12 +362,11 @@ const TRENCH = { x: -125, z: -95 };
 function trenchH(x, z){
   const d = Math.hypot(x - TRENCH.x, z - TRENCH.z) + tnoise(x*0.05-8.2, z*0.05+4.6)*14.0;
   const k1 = 1 - sstep(38, 62, d);
+  if (k1 <= 0) return Infinity;   // 海沟之外完全不影响地形
   const k2 = 1 - sstep(26, 44, d);
   const k3 = 1 - sstep(12, 24, d);
-  let t = -8;
-  t = Math.min(t, -8 - 10 * k1);
-  t = Math.min(t, -18 - 16 * k2);
-  t = Math.min(t, -34 - 24 * k3);
+  // 累加式阶梯：环带只在自己的范围内生效
+  let t = -8 - 10 * k1 - 16 * k2 - 24 * k3;
   t -= Math.abs(tnoise(x*0.09+3.3, z*0.09-6.1)) * (k1 * 5 + k2 * 3);   // 峡谷岩壁起伏
   return t;
 }
@@ -882,6 +906,35 @@ const COLLECTIBLES = [
   { id:'pearl', name:'深海珍珠', emoji:'💠', color:0xbfefff, pts:30, zone:'deep' },
 ];
 const SPEC_BY_ID = {}; SPECIES.forEach(s => SPEC_BY_ID[s.id] = s);
+
+/* ================================================================
+   过关系统：成就 / 新手教学链（订单定义在使用处）
+================================================================ */
+const ACHIEVEMENTS = [
+  { id:'first',   name:'开渔大吉',   desc:'捕获第一条鱼' },
+  { id:'r1',      name:'渐入佳境',   desc:'初次捕获优良生物' },
+  { id:'r2',      name:'寻宝猎人',   desc:'初次捕获稀有生物' },
+  { id:'r3',      name:'深渊来客',   desc:'初次捕获史诗生物' },
+  { id:'r4',      name:'传说缔造者', desc:'初次捕获传说生物' },
+  { id:'dive8',   name:'初次下潜',   desc:'下潜到 8 米' },
+  { id:'dive30',  name:'暮光访客',   desc:'下潜到 30 米' },
+  { id:'dive50',  name:'午夜征服者', desc:'下潜到 50 米' },
+  { id:'codex5',  name:'图鉴·启程', desc:'收集 5 种生物' },
+  { id:'codex10', name:'图鉴·过半', desc:'收集 10 种生物' },
+  { id:'codex18', name:'海洋百科',   desc:'集齐全部 18 种生物' },
+  { id:'streak5', name:'连击大师',   desc:'达成 5 连击' },
+  { id:'triple',  name:'一网三收',   desc:'一网捕获 3 条鱼' },
+  { id:'orders5', name:'金牌供应商', desc:'完成 5 份渔获订单' },
+  { id:'pearl1',  name:'采珠人',     desc:'采集一颗深海珍珠' },
+  { id:'level5',  name:'资深渔夫',   desc:'渔夫等级达到 Lv.5' },
+];
+const TUT = [
+  { icon: '🎣', text: '追上鱼群，按 <b>空格</b> 捕获一条鱼' },
+  { icon: '⭐', text: '游近采集一枚海星或贝壳' },
+  { icon: '🤿', text: '按 <b>Q</b> 下潜到 8 米深处' },
+  { icon: '📋', text: '完成一份渔获订单' },
+  { icon: '📖', text: '按 <b>C</b> 打开图鉴查看进度' },
+];
 
 /* ================================================================
    生物建模
@@ -1740,19 +1793,140 @@ function flashScreen(a){
   setTimeout(() => flashEl.style.opacity = 0, 90);
 }
 
+/* ================================================================
+   过关系统：渔获订单 / 成就 / 连击 / 新手教学链
+================================================================ */
+// —— 渔获订单（30 秒~3 分钟层：给玩家滚动的小目标）——
+function makeOrder(){
+  const taken = state.orders.filter(o => !o.done).map(o => o.sp);
+  const surface = SPECIES.filter(s => s.rarity <= 1 && (!s.zone || s.zone === undefined) && !taken.includes(s.id));
+  const deepUnlocked = !!(state.collected.djelly || state.collected.angler);
+  const deepPool = SPECIES.filter(s => s.zone === 'deep' && s.rarity <= 2 && !taken.includes(s.id));
+  if (deepUnlocked && deepPool.length && Math.random() < 0.3){
+    const sp = deepPool[Math.floor(Math.random() * deepPool.length)];
+    const need = 1 + Math.floor(Math.random() * 2);
+    return { sp: sp.id, need, got: 0, pts: Math.round(RARITY[sp.rarity].pts * need * 1.3 / 5) * 5, icon: sp.emoji, name: sp.name };
+  }
+  if (Math.random() < 0.28)
+    return { any: true, need: 4 + Math.floor(Math.random() * 3), got: 0, pts: 45, icon: '🐟', name: '任意鱼类' };
+  const pool = surface.length ? surface : SPECIES.filter(s => s.rarity === 0);
+  const sp = pool[Math.floor(Math.random() * pool.length)];
+  const need = sp.rarity === 0 ? 2 + Math.floor(Math.random() * 3) : 1 + Math.floor(Math.random() * 2);
+  return { sp: sp.id, need, got: 0, pts: Math.round(RARITY[sp.rarity].pts * need * 1.4 / 5) * 5, icon: sp.emoji, name: sp.name };
+}
+function ensureOrders(){
+  while (state.orders.length < 2) state.orders.push(makeOrder());
+  renderGoals();
+}
+function completeOrder(o){
+  o.done = true;
+  addScore(o.pts);
+  state.ordersDone++;
+  toast(`📋 订单完成 <b>${o.name} ×${o.need}</b>！奖励 +${o.pts}`, true);
+  burst(boat.position.x, boat.position.y + 1, boat.position.z, 0xffd24a, 16, 5);
+  tone(523, 0.12, 'triangle', 0.16); tone(659, 0.12, 'triangle', 0.16, 0.1);
+  tone(784, 0.2, 'triangle', 0.18, 0.2); tone(1046, 0.3, 'triangle', 0.15, 0.32);
+  if (state.ordersDone >= 5) unlockAch('orders5');
+  tutAdvance(3);
+  renderGoals();
+  setTimeout(() => {
+    const i = state.orders.indexOf(o);
+    if (i >= 0){ state.orders.splice(i, 1); state.orders.push(makeOrder()); renderGoals(); }
+  }, 1400);
+}
+function orderProgress(specId){
+  for (const o of state.orders){
+    if (o.done) continue;
+    if ((o.any || o.sp === specId) && o.got < o.need){
+      o.got++;
+      if (o.got >= o.need) completeOrder(o);
+      else renderGoals();
+      break;   // 一条鱼只推进一单
+    }
+  }
+}
+
+// —— 成就（3 分钟层：有铺垫的里程碑）——
+function unlockAch(id){
+  if (state.achievements[id]) return;
+  state.achievements[id] = 1;
+  const a = ACHIEVEMENTS.find(x => x.id === id);
+  if (!a) return;
+  addScore(20);
+  toast(`🏆 成就解锁 <b>${a.name}</b> —— ${a.desc}`, true);
+  burst(boat.position.x, boat.position.y + 1.2, boat.position.z, 0x7fe8ff, 14, 4.5);
+  tone(660, 0.14, 'triangle', 0.15); tone(880, 0.14, 'triangle', 0.15, 0.11);
+  tone(1108, 0.16, 'triangle', 0.15, 0.22); tone(1320, 0.35, 'sine', 0.13, 0.33);
+  persist();
+}
+function checkCodexAch(){
+  const d = discoveredCount();
+  if (d >= 5) unlockAch('codex5');
+  if (d >= 10) unlockAch('codex10');
+  if (d >= 18) unlockAch('codex18');
+}
+
+// —— 新手教学链（开场脚本：用行为压力教学，而非说明文字）——
+function tutAdvance(i){
+  if (state.tut !== i) return;
+  state.tut++;
+  tone(740, 0.1, 'triangle', 0.14); tone(988, 0.16, 'triangle', 0.13, 0.09);
+  if (state.tut >= TUT.length){
+    toast('🎓 新手教程完成！自由探索：集齐图鉴，征服深海沟！', true);
+    setTimeout(() => toast('💡 提示：西南方向海沟底部埋着深海珍珠与传说生物'), 2800);
+  }
+  persist();
+  renderGoals();
+}
+
+// —— 连击状态（18 秒窗口）——
+let streak = 0, streakT = 0;
+const streakChipEl = document.getElementById('streakChip');
+const streakNEl = document.getElementById('streakN');
+const streakFillEl = document.getElementById('streakFill');
+
+// —— 目标面板渲染（教学 + 订单）——
+const goalPanelEl = document.getElementById('goalPanel');
+function renderGoals(){
+  let html = '';
+  if (state.tut < TUT.length && state.started){
+    const t = TUT[state.tut];
+    html += `<div class="goalChip tut">${t.icon} <span>${t.text}</span><b>${state.tut + 1}/${TUT.length}</b></div>`;
+  }
+  if (state.started){
+    for (const o of state.orders){
+      const prog = `${o.got}/${o.need}`;
+      html += o.done
+        ? `<div class="goalChip done">✅ <span>${o.name} ×${o.need}</span><b>+${o.pts}</b></div>`
+        : `<div class="goalChip order">${o.icon} <span>${o.name}</span><em class="prog">${prog}</em><b>+${o.pts}</b></div>`;
+    }
+  }
+  goalPanelEl.innerHTML = html;
+}
+
 const state = {
   score: 0, level: 1, caught: 0,
   collected: {},   // id -> count
   started: false,
+  achievements: {},
+  tut: 0,          // 新手教学链进度（TUT.length = 完成）
+  orders: [],
+  ordersDone: 0,
 };
 let save = { best: 0, collected: {} };
 try { save = Object.assign(save, JSON.parse(localStorage.getItem('coralchase_save') || '{}')); } catch(e){}
 state.collected = Object.assign({}, save.collected);
+state.achievements = Object.assign({}, save.achievements || {});
+state.tut = save.tut || 0;
+state.ordersDone = save.ordersDone || 0;
 muted = !!save.muted;
 function persist(){
   save.best = Math.max(save.best, state.score);
   save.collected = state.collected;
   save.muted = muted;
+  save.achievements = state.achievements;
+  save.tut = state.tut;
+  save.ordersDone = state.ordersDone;
   try { localStorage.setItem('coralchase_save', JSON.stringify(save)); } catch(e){}
 }
 const discoveredCount = () => {
@@ -1771,7 +1945,9 @@ function addScore(pts){
   state.score += pts;
   while (state.score >= levelThreshold(state.level)){
     state.level++;
-    toast(`🎉 渔夫等级提升！ <b>Lv.${state.level}</b> 渔网更大 · 游速更快 · 氧气更足`);
+    o2 = o2Max();   // 升级瞬间氧气充满
+    if (state.level >= 5) unlockAch('level5');
+    toast(`🎉 渔夫等级提升！ <b>Lv.${state.level}</b> 渔网更大 · 游速更快 · 氧气已充满`);
     sndLevel();
   }
   refreshHUD(); persist();
@@ -1800,11 +1976,14 @@ function renderBook(){
     grid.appendChild(card);
   }
   const d = discoveredCount(), total = SPECIES.length + COLLECTIBLES.length;
-  document.getElementById('bookProgTxt').textContent = `收集进度 ${d} / ${total}`;
+  const achN = Object.keys(state.achievements).length;
+  document.getElementById('bookProgTxt').textContent =
+    `收集进度 ${d} / ${total} · 🏆 成就 ${achN} / ${ACHIEVEMENTS.length} · 📋 订单 ${state.ordersDone} 单`;
   document.getElementById('bookProgFill').style.width = (d / total * 100) + '%';
 }
 document.getElementById('btnBook').addEventListener('click', () => {
   renderBook(); bookEl.classList.add('open');
+  tutAdvance(4);
 });
 document.getElementById('bookClose').addEventListener('click', () => bookEl.classList.remove('open'));
 bookEl.addEventListener('click', e => { if (e.target === bookEl) bookEl.classList.remove('open'); });
@@ -1844,7 +2023,7 @@ addEventListener('keydown', e => {
   if (e.key === 'Escape') bookEl.classList.remove('open');
   if (e.key.toLowerCase() === 'c' && state.started){
     bookEl.classList.toggle('open');
-    if (bookEl.classList.contains('open')) renderBook();
+    if (bookEl.classList.contains('open')){ renderBook(); tutAdvance(4); }
   }
 });
 addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
@@ -1931,7 +2110,7 @@ function castNet(){
       addScore(bonus);
       popupAt3D(new THREE.Vector3(cx, boat.position.y + 0.5, cz), `🎣 一网${caught}收！奖励 +${bonus}`, '#ffd24a');
       tone(660, 0.2, 'triangle', 0.18, 0.3); tone(880, 0.25, 'triangle', 0.16, 0.42);
-      if (caught >= 3){ addTrauma(0.35); hitStop(0.07); }
+      if (caught >= 3){ addTrauma(0.35); hitStop(0.07); unlockAch('triple'); }
       else addTrauma(0.18);
     }
     if (!hits) popupAt3D(new THREE.Vector3(cx, boat.position.y + 0.5, cz), UW ? '没抓到…' : '空网…', '#e8f4f8');
@@ -1945,6 +2124,21 @@ function doCatch(f){
   popupAt3D(f.pos, `+${rr.pts} ${f.spec.emoji} ${f.spec.name}`, rr.color);
   burst(f.pos.x, f.pos.y + 0.5, f.pos.z, f.spec.color, 14, 5);
   sndCatch(f.spec.rarity);
+  // —— 连击（5 秒层：连续捕获的即时正反馈）——
+  if (streakT > 0) streak++; else streak = 1;
+  streakT = 18;
+  if (streak >= 2){
+    const bonus = streak * 2;
+    addScore(bonus);
+    popupAt3D(f.pos, `🔥 ${streak} 连击 +${bonus}`, '#ff9a5c');
+    if (streak >= 5) unlockAch('streak5');
+  }
+  // —— 订单进度 & 成就 ——
+  orderProgress(f.spec.id);
+  unlockAch('first');
+  if (f.spec.rarity >= 1) unlockAch('r' + f.spec.rarity);
+  checkCodexAch();
+  tutAdvance(0);
   // 分层反馈：越稀有冲击越强（震动/顿帧/白闪按重要性缩放）
   if (f.spec.rarity >= 4){ addTrauma(0.8); hitStop(0.14); flashScreen(0.5); }
   else if (f.spec.rarity === 3){ addTrauma(0.55); hitStop(0.1); flashScreen(0.35); }
@@ -2023,6 +2217,8 @@ function initialSpawn(){
         spawnFish(sp, randomWaterPoint(deep ? -20 : (sp.id === 'octo' ? -3.0 : -1.5), 30, deep));
     }
   }
+  // 开场脚本：出生点前方保底一群小丑鱼，确保前 30 秒就能体验核心循环
+  spawnSchool(SPEC_BY_ID.clown, new THREE.Vector3(0, 0, -42));
 }
 initialSpawn();
 
@@ -2363,6 +2559,10 @@ function updateDiveHUD(dt){
   // 深度表（0..60m → -120°..120°）
   gNeedleG.setAttribute('transform', `rotate(${(-120 + clamp(depth / 60, 0, 1) * 240).toFixed(1)} 60 60)`);
   gDepthEl.innerHTML = depth.toFixed(1) + '<span>m</span>';
+  // 深度成就 & 教学步进
+  if (depth >= 8){ unlockAch('dive8'); tutAdvance(2); }
+  if (depth >= 30) unlockAch('dive30');
+  if (depth >= 50) unlockAch('dive50');
   let zi = depth < 0.6 ? -1 : 0;
   for (let i = 0; i < ZONES.length; i++) if (depth >= (i ? ZONES[i-1].max : 0.6) && depth < ZONES[i].max) zi = i;
   if (zi !== curZone){
@@ -2386,7 +2586,8 @@ document.getElementById('btnStart').addEventListener('click', () => {
   initAudio();
   state.started = true;
   startEl.classList.add('hide');
-  toast('🚤 用 <b>WASD</b> 航行追逐鱼群，靠近后按<b>空格</b>撒网！');
+  toast('🤿 用 <b>WASD</b> 游动追逐鱼群，靠近后按<b>空格</b>捕捞！');
+  ensureOrders();
 });
 refreshHUD();
 
@@ -2418,6 +2619,17 @@ function animate(){
   netCD = Math.max(0, netCD - rawDt);
   netBarEl.style.width = (100 - netCD / netCDMax * 100) + '%';
 
+  // 连击窗口倒计时
+  if (streakT > 0){
+    streakT -= rawDt;
+    if (streakT <= 0){ streak = 0; streakChipEl.classList.remove('show'); }
+    else if (streak >= 2){
+      streakChipEl.classList.add('show');
+      streakNEl.textContent = streak;
+      streakFillEl.style.width = (streakT / 18 * 100) + '%';
+    }
+  }
+
   fpsFrames++; fpsTime += rawDt;
   if (fpsTime >= 0.5){ fpsVal = fpsFrames / fpsTime; fpsFrames = 0; fpsTime = 0; }
 
@@ -2443,6 +2655,9 @@ function animate(){
       popupAt3D(c.m.position, `+${c.def.pts} ${c.def.emoji} ${c.def.name}`, '#ffd24a');
       burst(c.m.position.x, 0.2, c.m.position.z, c.def.color, 8, 3.5);
       sndCollect(); refreshHUD();
+      if (c.def.id === 'pearl') unlockAch('pearl1');
+      else tutAdvance(1);
+      checkCodexAch();
     }
   }
 
