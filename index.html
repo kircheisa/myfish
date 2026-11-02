@@ -65,6 +65,11 @@
   #o2Panel.low { border-color:rgba(232,69,69,.8); animation:o2Blink 1s infinite; }
   #o2Panel.low #o2Bar { background:linear-gradient(90deg,#e84545,#ff8a5c); box-shadow:0 0 10px rgba(255,110,80,.7); }
   #o2Panel.low #o2Txt { color:#ffb0a0; }
+  #o2Panel.regen #o2Bar { box-shadow:0 0 12px rgba(110,255,210,.8); }
+  #o2Panel.regen #o2Txt { color:#9fffd8; }
+  #o2Panel.regen::after { content:'+'; position:absolute; right:-4px; top:50%; transform:translateY(-50%);
+    color:#6effd2; font-weight:700; font-size:13px; animation:regenFloat 1s infinite; }
+  @keyframes regenFloat { 0% { opacity:0; margin-top:6px; } 40% { opacity:1; } 100% { opacity:0; margin-top:-8px; } }
   @keyframes o2Blink { 50% { box-shadow:0 0 18px rgba(232,69,69,.55); } }
 
   /* ---------- 圆形深度表 ---------- */
@@ -316,7 +321,7 @@
     <div class="sub">—— 珊瑚礁捕捞季 ——</div>
     <div id="startCtrl">
       🤿 <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> / 方向键 —— 游动追逐鱼群<br>
-      🌊 <kbd>Q</kbd> 下潜 / <kbd>E</kbd> 上浮 —— 探索三层深海世界（注意氧气！）<br>
+      🌊 <kbd>Q</kbd> 下潜 / <kbd>E</kbd> 上浮 —— 探索三层深海世界（水面快速回氧，浮潜不耗氧）<br>
       🕸 <kbd>空格</kbd> —— 水面撒网 / 水下徒手抓捕<br>
       💠 潜入西南深海沟 —— 采集珍珠、寻找发光生物与传说大王乌贼<br>
       📖 <kbd>C</kbd> —— 查看图鉴，集齐 18 种海洋生物
@@ -2318,7 +2323,7 @@ let hitStopT = 0;
 function hitStop(d){ hitStopT = Math.max(hitStopT, d); }
 
 let playerVy = 0, swimAnimT = 0, bubbleTimer = 0;
-let o2 = 100, forcedAscend = false;
+let o2 = 100, forcedAscend = false, o2Regen = 2;
 const o2Max = () => 100 + (state.level - 1) * 8;
 const playerUnderwater = () => boat.position.y < -1.1;
 
@@ -2370,17 +2375,24 @@ function updatePlayer(dt, t){
   if (boat.position.y > -0.9 && !vDn && !forcedAscend)
     boat.position.y += (surfY - boat.position.y) * Math.min(1, dt * 3);
 
-  // —— 氧气 ——
-  if (deep){
+  // —— 氧气（分档：水面快速恢复 / 浅水浮潜缓回 / 深水消耗）——
+  {
     const depth = -boat.position.y;
-    o2 -= (1.05 + Math.max(0, depth - 14) * 0.045 + Math.max(0, depth - 34) * 0.05) * dt;
-    if (o2 <= 0 && !forcedAscend){
-      o2 = 0; forcedAscend = true;
-      addTrauma(0.4); flashScreen(0.25); sndMiss();
-      toast('😮‍💨 <b>氧气耗尽！</b>紧急上浮');
+    if (depth < 1.2){
+      o2 = Math.min(o2Max(), o2 + 35 * dt);          // 水面：快速恢复
+      o2Regen = 2;
+    } else if (depth < 3.0){
+      o2 = Math.min(o2Max(), o2 + 9 * dt);           // 浅水浮潜：缓慢恢复
+      o2Regen = 1;
+    } else {
+      o2Regen = 0;
+      o2 -= (1.05 + Math.max(0, depth - 14) * 0.045 + Math.max(0, depth - 34) * 0.05) * dt;
+      if (o2 <= 0 && !forcedAscend){
+        o2 = 0; forcedAscend = true;
+        addTrauma(0.4); flashScreen(0.25); sndMiss();
+        toast('😮‍💨 <b>氧气耗尽！</b>紧急上浮');
+      }
     }
-  } else {
-    o2 = Math.min(o2Max(), o2 + 26 * dt);
     if (forcedAscend && boat.position.y > -0.8) forcedAscend = false;
   }
 
@@ -2584,6 +2596,7 @@ function updateDiveHUD(dt){
   o2BarEl.style.width = (pct * 100).toFixed(1) + '%';
   o2TxtEl.textContent = Math.ceil(pct * 100);
   o2PanelEl.classList.toggle('low', pct < 0.28);
+  o2PanelEl.classList.toggle('regen', o2Regen > 0 && pct < 1);
   document.body.classList.toggle('lowo2', pct < 0.22 && playerUnderwater());
   if (pct < 0.28 && playerUnderwater()){
     o2BeepT -= dt;
