@@ -233,6 +233,9 @@
 
   #vig { position:fixed; inset:0; pointer-events:none; z-index:15;
     background:radial-gradient(ellipse at center, transparent 62%, rgba(4,36,58,.28) 100%); }
+  body.lowo2 #vig { background:radial-gradient(ellipse at center, transparent 52%, rgba(205,35,35,.42) 100%);
+    animation:lowPulse 1s infinite; }
+  @keyframes lowPulse { 50% { opacity:.5; } }
 </style>
 </head>
 <body>
@@ -1289,6 +1292,12 @@ function updateFish(f, dt, t){
     f.stateT -= dt;
     targetSpeed = sp.speed * 0.38;
     if (f.stateT <= 0) f.state = 'wander';
+    // 疲惫提示：附近冒小气泡（教学玩家"此时收网"）
+    f.bubT = (f.bubT || 0) - dt;
+    if (f.bubT <= 0 && Math.hypot(p.x - boat.position.x, (p.y - boat.position.y) * 0.5, p.z - boat.position.z) < 26){
+      f.bubT = 0.7;
+      spawnBubbles(p.x, p.y + 0.4, p.z, 1);
+    }
   }
   if (sp.type === 'jelly'){
     // 水母：缓慢漂移
@@ -2022,11 +2031,14 @@ refreshSoundBtn();
 
 // 清空存档
 document.getElementById('btnReset').addEventListener('click', () => {
-  if (!confirm('确定清空图鉴与最高分吗？（当前分数也会归零）')) return;
+  if (!confirm('确定清空图鉴、成就与最高分吗？（当前分数也会归零）')) return;
   try { localStorage.removeItem('coralchase_save'); } catch(e){}
   save = { best: 0, collected: {}, muted };
   state.collected = {}; state.score = 0; state.level = 1; state.caught = 0;
-  refreshHUD(); renderBook(); toast('存档已清空');
+  state.achievements = {}; state.tut = 0; state.ordersDone = 0;
+  state.orders = []; ensureOrders();
+  streak = 0; streakT = 0; streakChipEl.classList.remove('show');
+  refreshHUD(); renderBook(); toast('存档已清空，重新出发！');
 });
 
 /* ================================================================
@@ -2572,6 +2584,7 @@ function updateDiveHUD(dt){
   o2BarEl.style.width = (pct * 100).toFixed(1) + '%';
   o2TxtEl.textContent = Math.ceil(pct * 100);
   o2PanelEl.classList.toggle('low', pct < 0.28);
+  document.body.classList.toggle('lowo2', pct < 0.22 && playerUnderwater());
   if (pct < 0.28 && playerUnderwater()){
     o2BeepT -= dt;
     if (o2BeepT <= 0){ o2BeepT = 1.5; tone(980, 0.07, 'square', 0.06); }
