@@ -311,6 +311,26 @@
   #btnCraft { position:absolute; top:calc(112px + var(--sa-t)); right:calc(16px + var(--sa-r)); pointer-events:auto; cursor:pointer;
     padding:7px 15px; font-size:15px; transition:transform .15s; }
   #btnCraft:hover { transform:scale(1.08); }
+  #btnHelp { position:absolute; top:calc(160px + var(--sa-t)); right:calc(16px + var(--sa-r)); pointer-events:auto; cursor:pointer;
+    padding:7px 15px; font-size:15px; transition:transform .15s; }
+  #btnHelp:hover { transform:scale(1.08); }
+  #help { position:fixed; inset:0; z-index:50; display:none; align-items:center; justify-content:center;
+    background:rgba(2,14,26,.55); backdrop-filter:blur(6px); }
+  #help.open { display:flex; }
+  #helpCard { width:min(560px, 92vw); max-height:84vh; overflow:auto; border-radius:18px; padding:24px 28px;
+    background:rgba(6,24,38,.96); border:1px solid var(--panelLine);
+    box-shadow:0 20px 60px rgba(0,10,25,.6), inset 0 1px 0 rgba(120,200,255,.15); }
+  #helpCard h2 { font-size:20px; color:var(--txt); margin-bottom:4px; }
+  #helpCard .hsub { font-size:12px; color:var(--txt2); margin-bottom:14px; }
+  #helpCard h3 { font-size:14px; color:var(--acc2); margin:14px 0 8px; letter-spacing:1px; }
+  .hRow { display:flex; align-items:center; gap:10px; padding:5px 0; font-size:13.5px; color:var(--txt); }
+  .hRow .hk { min-width:150px; display:flex; gap:4px; flex-shrink:0; }
+  .hRow span { color:var(--txt2); }
+  .hTip { font-size:12.5px; color:var(--txt2); line-height:1.7; padding-left:2px; }
+  .hTip b { color:var(--txt); }
+  #helpClose { margin-top:18px; text-align:center; }
+  #helpClose button { cursor:pointer; border:none; border-radius:99px; padding:9px 40px; font-size:14px;
+    font-weight:800; color:#04222e; background:linear-gradient(90deg,#4fe0c8,#2fbdf0); box-shadow:0 4px 16px rgba(79,216,232,.35); }
 
   #vig { position:fixed; inset:0; pointer-events:none; z-index:15;
     background:radial-gradient(ellipse at center, transparent 62%, rgba(4,36,58,.28) 100%); }
@@ -336,6 +356,7 @@
   <div id="btnBook" class="glass"><span class="em">📖</span> 图鉴 <span id="bookCnt">0/18</span></div>
   <div id="btnSound" class="glass" title="音效开关">🔊</div>
   <div id="btnCraft" class="glass" title="制作 (V)">🛠</div>
+  <div id="btnHelp" class="glass" title="帮助 (H)">❓</div>
 
   <!-- 氧气面板 + 生存属性（饥饿/口渴） -->
   <div id="o2Panel">
@@ -392,6 +413,29 @@
       <button>继续出海</button>
       <button id="btnReset" style="background:rgba(220,90,80,.12);color:#b23c30;box-shadow:none;border:1.5px solid rgba(220,90,80,.35);margin-left:12px;padding:8px 22px;font-size:13px;">清空存档</button>
     </div>
+  </div>
+</div>
+
+<!-- 帮助面板 -->
+<div id="help">
+  <div id="helpCard">
+    <h2>❓ 操作与玩法速览</h2>
+    <div class="hsub">按 H 随时打开 · Esc 关闭</div>
+    <h3>⌨ 操作</h3>
+    <div class="hRow"><div class="hk"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></div><span>游动 / 岛上行走</span></div>
+    <div class="hRow"><div class="hk"><kbd>Q</kbd> / <kbd>E</kbd></div><span>下潜 / 上浮（E 在陆地=交互）</span></div>
+    <div class="hRow"><div class="hk"><kbd>空格</kbd></div><span>水面撒网 · 水下徒手抓 · 陆地抓螃蟹 / 长矛突刺</span></div>
+    <div class="hRow"><div class="hk"><kbd>F</kbd></div><span>进食（自动选：椰子→野猪肉→螃蟹→水袋）</span></div>
+    <div class="hRow"><div class="hk"><kbd>V</kbd></div><span>制作（篝火 / 庇护所 / 水袋 / 长矛）</span></div>
+    <div class="hRow"><div class="hk"><kbd>C</kbd> · <kbd>H</kbd></div><span>图鉴 · 本帮助</span></div>
+    <div class="hRow"><div class="hk">滚轮</div><span>缩放镜头</span></div>
+    <h3>💡 玩法要点</h3>
+    <div class="hTip"><b>氧气：</b>水面 3 秒回满，3 米内浮潜不耗氧；越深耗越快。耗尽会紧急上浮。</div>
+    <div class="hTip"><b>捕捞：</b>鱼被惊会狂奔，<b>疲惫冒泡时</b>收网最稳；稀有鱼会挣扎，连捕有连击加分。</div>
+    <div class="hTip"><b>订单：</b>顶部订单完成有丰厚奖励，也推进成就。</div>
+    <div class="hTip"><b>荒岛求生：</b>东北大岛可登岸——采椰子、抓螃蟹、溪边饮水（E）；生火烤鱼（🐟+70 饥饿）；夜里回篝火旁或庇护所过夜。</div>
+    <div class="hTip"><b>深海沟：</b>西南方向，最深 58 米——珍珠、发光生物、传说大王乌贼；午夜带记得开路的手灯。</div>
+    <div id="helpClose"><button>知道了，出海！</button></div>
   </div>
 </div>
 
@@ -2875,7 +2919,7 @@ addEventListener('keydown', e => {
     document.getElementById('btnStart').click();
     return;
   }
-  if (e.key === 'Escape'){ bookEl.classList.remove('open'); craftPanelEl.classList.remove('open'); craftOpen = false; }
+  if (e.key === 'Escape'){ bookEl.classList.remove('open'); craftPanelEl.classList.remove('open'); craftOpen = false; toggleHelp(false); }
   if (!state.started) return;
   // 空格路由：螃蟹 > 长矛 > 撒网（撒网由轮询触发）
   if (k === ' ' && !e.repeat && boatMode !== 'swim'){
@@ -2901,6 +2945,7 @@ addEventListener('keydown', e => {
   }
   if (craftOpen && '1234'.includes(k) && !e.repeat) tryCraft(+k - 1);
   if (e.key === 'Escape') bookEl.classList.remove('open');
+  if (k === 'h' && !e.repeat) toggleHelp();
   if (k === 'c' && state.started){
     bookEl.classList.toggle('open');
     if (bookEl.classList.contains('open')){ renderBook(); tutAdvance(4); }
@@ -2932,6 +2977,16 @@ document.getElementById('btnCraft').addEventListener('click', () => {
   craftPanelEl.classList.toggle('open', craftOpen);
   if (craftOpen) renderCraft();
 });
+
+// 帮助面板（H / ❓）
+const helpEl = document.getElementById('help');
+function toggleHelp(force){
+  const open = force !== undefined ? force : !helpEl.classList.contains('open');
+  helpEl.classList.toggle('open', open);
+}
+document.getElementById('btnHelp').addEventListener('click', () => toggleHelp());
+document.getElementById('helpClose').addEventListener('click', () => toggleHelp(false));
+helpEl.addEventListener('click', e => { if (e.target === helpEl) toggleHelp(false); });
 
 /* ================================================================
    撒网捕捞
