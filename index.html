@@ -353,7 +353,7 @@
     <div class="pill glass" id="streakChip">🔥<b id="streakN">2</b><div id="streakBar"><div id="streakFill"></div></div></div>
   </div>
   <div id="goalPanel"></div>
-  <div id="btnBook" class="glass"><span class="em">📖</span> 图鉴 <span id="bookCnt">0/18</span></div>
+  <div id="btnBook" class="glass"><span class="em">📖</span> 图鉴 <span id="bookCnt">0/20</span></div>
   <div id="btnSound" class="glass" title="音效开关">🔊</div>
   <div id="btnCraft" class="glass" title="制作 (V)">🛠</div>
   <div id="btnHelp" class="glass" title="帮助 (H)">❓</div>
@@ -459,7 +459,7 @@
       🕸 <kbd>空格</kbd> —— 水面撒网 / 水下徒手抓捕<br>
       🏝 游向东北<b>大岛登岸</b>——荒野求生：采集椰子、抓螃蟹、溪边饮水<br>
       🛠 <kbd>V</kbd> 制作 —— 篝火烤鱼 · 庇护所过夜 · 水袋 · 长矛猎野猪（<kbd>F</kbd> 进食）<br>
-      📖 <kbd>C</kbd> 图鉴 —— 集齐 18 种生物 + 22 项成就
+      📖 <kbd>C</kbd> 图鉴 —— 集齐 20 种生物 + 22 项成就
     </div>
     <div id="startBest"></div>
     <button id="btnStart">出 海</button>
@@ -924,12 +924,12 @@ function makeCoral(x, z, h){
 (function placeCorals(){
   const placed = [];
   let tries = 0;
-  while (placed.length < 46 && tries++ < 3000){
+  while (placed.length < 72 && tries++ < 4000){
     const x = rand(-210, 210), z = rand(-210, 210);
     const h = terrainHeight(x, z);
-    if (h < -3.4 || h > -1.0) continue;
+    if (h < -12 || h > -1.0) continue;
     if (Math.hypot(x, z) > WORLD_R - 5) continue;
-    if (placed.some(p => Math.hypot(p[0]-x, p[1]-z) < 8)) continue;
+    if (placed.some(p => Math.hypot(p[0]-x, p[1]-z) < 7)) continue;
     placed.push([x, z]); makeCoral(x, z, h);
   }
 })();
@@ -938,10 +938,10 @@ function makeCoral(x, z, h){
 const seaweeds = [];
 (function placeSeaweed(){
   let placed = 0, tries = 0;
-  while (placed < 30 && tries++ < 2000){
+  while (placed < 46 && tries++ < 3000){
     const x = rand(-200, 200), z = rand(-200, 200);
     const h = terrainHeight(x, z);
-    if (h < -4.2 || h > -1.4) continue;
+    if (h < -14 || h > -1.4) continue;
     const g = new THREE.Group();
     const blades = 3 + Math.floor(Math.random() * 3);
     for (let i = 0; i < blades; i++){
@@ -1081,6 +1081,9 @@ const SPECIES = [
   { id:'ray',    name:'蝠鲼',     emoji:'🐋', rarity:2, type:'ray',     color:0x3a5f8f, size:1.5,  speed:3.0, fleeSpd:7.2, fleeR:14, yMin:-2.2, yMax:-3.6, target:2, tailFreq:2.5 },
   { id:'dolph',  name:'海豚',     emoji:'🐬', rarity:2, type:'dolphin', color:0x7aa7d8, size:1.0,  speed:5.0, fleeSpd:10.2, fleeR:16, yMin:-1.4, yMax:-1.4, target:2, tailFreq:6 },
   { id:'octo',   name:'章鱼',     emoji:'🐙', rarity:3, type:'octopus', color:0x9a5fd0, size:0.9,  speed:1.5, fleeSpd:4.6, fleeR:9,  yMin:-3.2, yMax:-4.0, target:1, tailFreq:3 },
+  // —— 中层礁带（-3~-12m，深度修复后新增生态）——
+  { id:'damsel', name:'光鳃雀鲷', emoji:'🐟', rarity:0, type:'fish',    color:0x5a7bff, size:0.38, speed:3.3, fleeSpd:8.2, fleeR:8,  yMin:-3.0, yMax:-8.5, school:11, target:11, tailFreq:11 },
+  { id:'eel',    name:'海鳗',     emoji:'🐍', rarity:2, type:'fish',    color:0x9a8a45, size:1.15, speed:1.1, fleeSpd:4.0, fleeR:7,  yMin:-6.0, yMax:-12, long:true, target:2, tailFreq:3 },
   { id:'shark',  name:'锤头鲨',   emoji:'🦈', rarity:4, type:'shark',   color:0x8a99a8, size:1.8,  speed:4.2, fleeSpd:9.6, fleeR:20, yMin:-1.3, yMax:-1.6, target:1, tailFreq:4, hp:3 },
   // —— 深海区（海沟）生物，仅潜水可捕 ——
   { id:'djelly', name:'深海水母', emoji:'🪼', rarity:2, type:'jelly',   color:0x5fd8ff, size:0.95, speed:0.8, fleeSpd:2.2, fleeR:8,  yMin:-20, yMax:-34, zone:'deep', glow:true, target:3, tailFreq:2 },
@@ -1108,7 +1111,7 @@ const ACHIEVEMENTS = [
   { id:'dive50',  name:'午夜征服者', desc:'下潜到 50 米' },
   { id:'codex5',  name:'图鉴·启程', desc:'收集 5 种生物' },
   { id:'codex10', name:'图鉴·过半', desc:'收集 10 种生物' },
-  { id:'codex18', name:'海洋百科',   desc:'集齐全部 18 种生物' },
+  { id:'codex18', name:'海洋百科',   desc:'集齐全部生物' },
   { id:'streak5', name:'连击大师',   desc:'达成 5 连击' },
   { id:'triple',  name:'一网三收',   desc:'一网捕获 3 条鱼' },
   { id:'orders5', name:'金牌供应商', desc:'完成 5 份渔获订单' },
@@ -1148,7 +1151,9 @@ function buildCreature(sp){
   if (sp.type === 'fish' || sp.type === 'puffer'){
     const isP = sp.type === 'puffer';
     const body = new THREE.Mesh(new THREE.SphereGeometry(isP ? 0.55 : 0.5, 8, 6), bodyMat);
-    body.scale.set(...(isP ? [s, s, s] : [0.62 * s, 0.95 * s, 1.7 * s]));
+    body.scale.set(...(isP ? [s, s, s] : sp.long
+      ? [0.34 * s, 0.5 * s, 3.3 * s]      // 海鳗：细长岩缝体型
+      : [0.62 * s, 0.95 * s, 1.7 * s]));
     g.add(body); parts.body = body;
     if (sp.band){
       for (const bz of [0.18 * s, -0.3 * s]){
@@ -1157,19 +1162,20 @@ function buildCreature(sp){
       }
     }
     // 尾巴
-    const tailG = new THREE.Group(); tailG.position.z = -0.78 * s;
+    const tailG = new THREE.Group(); tailG.position.z = (sp.long ? -1.52 : -0.78) * s;
     const tail = new THREE.Mesh(new THREE.ConeGeometry(0.34 * s, 0.62 * s, 4), finMat);
     tail.geometry.rotateX(-Math.PI / 2);
-    tail.scale.set(0.16, 1.35, 1); tail.position.z = -0.26 * s;
+    tail.scale.set(sp.long ? 0.12 : 0.16, sp.long ? 1.7 : 1.35, 1); tail.position.z = -0.26 * s;
     tailG.add(tail); g.add(tailG); parts.tail = tailG;
     if (!isP){
       const dorsal = new THREE.Mesh(new THREE.ConeGeometry(0.24 * s, 0.45 * s, 4), finMat);
-      dorsal.position.set(0, 0.52 * s, -0.05 * s); dorsal.scale.z = 0.5;
+      dorsal.position.set(0, sp.long ? 0.3 * s : 0.52 * s, sp.long ? -0.3 * s : -0.05 * s);
+      dorsal.scale.set(sp.long ? 2.2 : 1, 1, sp.long ? 3.2 : 0.5);
       if (sp.spikes) dorsal.visible = false;
       g.add(dorsal);
       for (const sd of [-1, 1]){
         const p = new THREE.Mesh(new THREE.ConeGeometry(0.13 * s, 0.3 * s, 4), finMat);
-        p.position.set(sd * 0.3 * s, -0.08 * s, 0.2 * s);
+        p.position.set(sd * (sp.long ? 0.2 : 0.3) * s, -0.08 * s, (sp.long ? 0.9 : 0.2) * s);
         p.rotation.z = sd * Math.PI / 2 * 0.8; p.scale.x = 0.4;
         g.add(p);
       }
@@ -1190,8 +1196,8 @@ function buildCreature(sp){
         g.add(th);
       }
     }
-    addEye(g, 0.22 * s, 0.13 * s, 0.5 * s, isP ? 0.09 * s : 0.07 * s);
-    addEye(g, -0.22 * s, 0.13 * s, 0.5 * s, isP ? 0.09 * s : 0.07 * s);
+    addEye(g, 0.22 * s, 0.13 * s, (sp.long ? 1.35 : 0.5) * s, isP ? 0.09 * s : 0.07 * s);
+    addEye(g, -0.22 * s, 0.13 * s, (sp.long ? 1.35 : 0.5) * s, isP ? 0.09 * s : 0.07 * s);
 
   } else if (sp.type === 'jelly'){
     const bellM = new THREE.MeshStandardMaterial({ color: sp.color, flatShading: true, transparent: true,
@@ -2809,7 +2815,7 @@ function checkCodexAch(){
   const d = discoveredCount();
   if (d >= 5) unlockAch('codex5');
   if (d >= 10) unlockAch('codex10');
-  if (d >= 18) unlockAch('codex18');
+  if (d >= SPECIES.length + COLLECTIBLES.length) unlockAch('codex18');
 }
 
 // —— 新手教学链（开场脚本：用行为压力教学，而非说明文字）——
@@ -2876,6 +2882,8 @@ function persist(){
   save.inventory = { ...inventory };
   save.structures = structures.map(s => ({ t: s.type, x: s.x, z: s.z }));
   save.dayCount = dayCount;
+  save.pos = { x: boat.position.x, y: boat.position.y, z: boat.position.z };
+  save.caught = state.caught;
   save.hasWaterskin = hasWaterskin;
   save.drinkCount = drinkCount;
   try { localStorage.setItem('coralchase_save', JSON.stringify(save)); } catch(e){}
@@ -2885,6 +2893,14 @@ function loadSurvivalSave(){
   if (save.hasWaterskin) hasWaterskin = true;
   if (save.drinkCount) drinkCount = save.drinkCount;
   if (save.dayCount) dayCount = save.dayCount;
+  if (save.caught) state.caught = save.caught;
+  if (save.pos){
+    const px = save.pos.x, pz = save.pos.z;
+    const ghP = terrainHeight(px, pz);
+    // 恢复位置并做地形安全钳制（浅水站底/陆地贴地）
+    boat.position.x = px; boat.position.z = pz;
+    boat.position.y = ghP > -0.45 ? ghP + 1.05 : Math.max(save.pos.y, ghP + 0.62);
+  }
   if (save.structures){
     for (const s of save.structures){
       if (s.t === 'campfire') buildCampfire(s.x, s.z, true);
@@ -3673,7 +3689,7 @@ refreshHUD();
    主循环
 ================================================================ */
 const clock = new THREE.Clock();
-let fpsFrames = 0, fpsTime = 0, fpsVal = 0;
+let fpsFrames = 0, fpsTime = 0, fpsVal = 0, autosaveT = 20;
 const netBarEl = document.getElementById('netBar');
 function animate(){
   requestAnimationFrame(animate);
@@ -3710,6 +3726,12 @@ function animate(){
 
   fpsFrames++; fpsTime += rawDt;
   if (fpsTime >= 0.5){ fpsVal = fpsFrames / fpsTime; fpsFrames = 0; fpsTime = 0; }
+
+  // 位置自动存档（20s 节流，探索连续性）
+  if (state.started){
+    autosaveT -= rawDt;
+    if (autosaveT <= 0){ autosaveT = 20; persist(); }
+  }
 
   for (let i = fishes.length - 1; i >= 0; i--) updateFish(fishes[i], dt, t);
   for (const s of schools) updateSchool(s, dt, t);
