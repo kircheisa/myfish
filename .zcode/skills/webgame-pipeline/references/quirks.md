@@ -13,6 +13,7 @@
 
 - **TLA 模块里 SW 注册时序**——模块含 top-level await 时，`load` 事件可能在注册代码执行前已触发，`addEventListener('load')` 永不回调。注册前判断 `document.readyState === 'complete'`。
 - **SW 调试会污染判断**——旧 SW 缓存会发旧页面，制造"改了没生效"假象。调试期先 `getRegistrations().unregister()` + `caches.delete()` 再硬刷新（`?v=$RANDOM`）。缓存版本号 `CACHE = 'coralchase-vN'` 要随资源变更递增。
+- **index.html 任何变更都必须递增 sw.js 的 CACHE 版本号**——否则老用户浏览器里旧 SW 永远发旧缓存（实测踩过：改完部署线上看不到新功能）。且 SW 更新后**当前已打开的页面仍属旧 SW**，新 SW 接管需再导航一次才生效——线上复验失败时先重载一次页面再下结论。
 
 ## three.js 渲染（r160）
 
