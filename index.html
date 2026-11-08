@@ -433,7 +433,7 @@
     <div class="hTip"><b>氧气：</b>水面 3 秒回满，3 米内浮潜不耗氧；越深耗越快。耗尽会紧急上浮。</div>
     <div class="hTip"><b>捕捞：</b>鱼被惊会狂奔，<b>疲惫冒泡时</b>收网最稳；稀有鱼会挣扎，连捕有连击加分。</div>
     <div class="hTip"><b>订单：</b>顶部订单完成有丰厚奖励，也推进成就。</div>
-    <div class="hTip"><b>荒岛求生：</b>东北大岛可登岸——采椰子、抓螃蟹、溪边饮水（E）；生火烤鱼（🐟+70 饥饿）；夜里回篝火旁或庇护所过夜。</div>
+    <div class="hTip"><b>荒岛求生：</b>东北大岛可登岸——采椰子、抓螃蟹、溪边饮水（E）；生火烤鱼（🐟+70 饥饿）；夜里回篝火旁或庇护所过夜。开局自带<b>木矛+木头×3+石头×2</b>：上岛即可狩猎野猪或直接生篝火。</div>
     <div class="hTip"><b>深海沟：</b>西南方向，最深 58 米——珍珠、发光生物、传说大王乌贼；午夜带记得开路的手灯。</div>
     <div id="helpClose"><button>知道了，出海！</button></div>
   </div>
@@ -2889,7 +2889,13 @@ function persist(){
   try { localStorage.setItem('coralchase_save', JSON.stringify(save)); } catch(e){}
 }
 function loadSurvivalSave(){
+  const isNewGame = !save.inventory && !save.structures && !save.pos;
   if (save.inventory) Object.assign(inventory, save.inventory);
+  else if (isNewGame){
+    // 初始装备：基础武器 + 工具（仅新档发放，落地即可狩猎/生火）
+    Object.assign(inventory, { spear: 1, wood: 3, stone: 2 });
+    setTimeout(() => toast('🎒 初始装备：<b>木矛×1</b> · 木头×3 · 石头×2 —— 上岛可狩猎野猪，或直接生起篝火'), 2600);
+  }
   if (save.hasWaterskin) hasWaterskin = true;
   if (save.drinkCount) drinkCount = save.drinkCount;
   if (save.dayCount) dayCount = save.dayCount;
