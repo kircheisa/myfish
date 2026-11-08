@@ -560,7 +560,7 @@ function terrainHeight(x, z){
     const f = FIELDS[i];
     const d = Math.hypot(x - f[0], z - f[1]) + tnoise(x*0.06+3.7, z*0.06-1.9)*10.0;
     const k = 1 - sstep(f[2]*0.35, f[2], d);
-    h = Math.max(h, (f[3] + tnoise(x*0.09-4.2, z*0.09+8.8)*1.1) * k + (-1.2)*(1-k));
+    h = Math.max(h, (f[3] + tnoise(x*0.09-4.2, z*0.09+8.8)*1.1) * k + (-8.5)*(1-k));
   }
   h = Math.min(h, trenchH(x, z));
   // 溪流刻划：可饮水的浅水道切入岛体
@@ -2636,6 +2636,80 @@ const sndLevel  = () => { tone(523, 0.16, 'square', 0.08); tone(659, 0.16, 'squa
 const sndMiss   = () => tone(300 * rand(0.94, 1.06), 0.18, 'sawtooth', 0.07, 0, -140);
 
 /* ================================================================
+   程序化背景音乐（WebAudio 合成，零素材·离线可用）
+   Pad 和弦 + 五声琶音；水下变闷变稀、夜晚更安静；受总静音控制
+================================================================ */
+const bgmBus = { pad: null, filter: null };
+const BGM_CHORDS = [
+  [130.81, 164.81, 196.00, 246.94],   // Cmaj7
+  [110.00, 130.81, 164.81, 196.00],   // Am7
+  [ 87.31, 110.00, 130.81, 174.61],   // Fmaj7
+  [ 98.00, 123.47, 146.83, 196.00],   // G6
+];
+const BGM_SCALE = [261.63, 293.66, 329.63, 392.00, 440.00, 523.25, 587.33];
+let bgmOn = false, bgmChordI = 0, bgmPadAt = 0, bgmArpAt = 0, bgmTimer = null;
+function startBGM(){
+  if (bgmOn || !AC) return;
+  bgmOn = true;
+  if (!bgmBus.filter){
+    bgmBus.filter = AC.createBiquadFilter();
+    bgmBus.filter.type = 'lowpass'; bgmBus.filter.frequency.value = 900; bgmBus.filter.Q.value = 0.4;
+    bgmBus.pad = AC.createGain(); bgmBus.pad.gain.value = 0.5;
+    bgmBus.pad.connect(bgmBus.filter).connect(MG || AC.destination);
+  }
+  if (AC.state === 'suspended') AC.resume();
+  bgmPadAt = AC.currentTime + 0.1;
+  bgmArpAt = AC.currentTime + 2.0;
+  bgmTimer = setInterval(bgmTick, 250);
+}
+function bgmPad(freqs, at){
+  for (const f of freqs){
+    const o = AC.createOscillator(), g = AC.createGain();
+    o.type = 'triangle'; o.frequency.value = f * rand(0.998, 1.002);
+    g.gain.setValueAtTime(0.0001, at);
+    g.gain.linearRampToValueAtTime(0.045, at + 2.8);
+    g.gain.setValueAtTime(0.045, at + 6.2);
+    g.gain.linearRampToValueAtTime(0.0001, at + 9.4);
+    o.connect(g).connect(bgmBus.pad);
+    o.start(at); o.stop(at + 9.6);
+  }
+}
+function bgmArp(f, at){
+  const o = AC.createOscillator(), g = AC.createGain();
+  o.type = 'sine'; o.frequency.value = f;
+  g.gain.setValueAtTime(0.085, at);
+  g.gain.exponentialRampToValueAtTime(0.0008, at + 1.15);
+  o.connect(g).connect(MG || AC.destination);
+  o.start(at); o.stop(at + 1.2);
+  // 泛音闪光
+  const o2 = AC.createOscillator(), g2 = AC.createGain();
+  o2.type = 'sine'; o2.frequency.value = f * 2;
+  g2.gain.setValueAtTime(0.02, at);
+  g2.gain.exponentialRampToValueAtTime(0.0005, at + 0.5);
+  o2.connect(g2).connect(MG || AC.destination);
+  o2.start(at); o2.stop(at + 0.55);
+}
+function bgmTick(){
+  if (!bgmOn || !AC || muted) return;
+  const t = AC.currentTime;
+  // 状态参数：水下更闷更稀，夜晚更安静
+  const uw = playerUnderwater(), nk = nightK();
+  bgmBus.filter.frequency.setTargetAtTime(uw ? 300 : 900, t, 1.2);
+  bgmBus.pad.gain.setTargetAtTime(nk > 0.5 ? 0.34 : 0.5, t, 2);
+  if (t >= bgmPadAt - 0.5){
+    bgmPad(BGM_CHORDS[bgmChordI % BGM_CHORDS.length], Math.max(t + 0.05, bgmPadAt));
+    bgmChordI++;
+    bgmPadAt = Math.max(t, bgmPadAt) + 8.5;
+  }
+  if (t >= bgmArpAt){
+    const density = uw ? 0.45 : (nk > 0.5 ? 0.6 : 0.92);
+    if (Math.random() < density)
+      bgmArp(BGM_SCALE[Math.floor(Math.random() * BGM_SCALE.length)] * (uw ? 0.5 : 1) * rand(0.999, 1.001), t + 0.02);
+    bgmArpAt = t + rand(0.55, 1.35);
+  }
+}
+
+/* ================================================================
    UI：弹字 / 提示 / 图鉴 / 存档
 ================================================================ */
 const popsEl = document.getElementById('pops');
@@ -3294,26 +3368,26 @@ function updatePlayer(dt, t){
     boat.position.x = Math.sin(a) * WORLD_R; boat.position.z = Math.cos(a) * WORLD_R;
     if (t - edgeWarnT > 3){ edgeWarnT = t; popupAt3D(boat.position, '已到海域边缘', '#bfe0ee'); }
   }
-  // —— 三态垂直：站立贴地 / 游泳浮沉 ——
+  // —— 三态垂直：陆地站立 / 水中浮沉（浅水按 Q 可俯卧下潜贴底）——
   const gh = terrainHeight(boat.position.x, boat.position.z);
-  if (gh > -1.1){
-    boatMode = gh > -0.45 ? 'walk' : 'wade';
+  if (gh > -0.45){
+    boatMode = 'walk';
     boat.position.y += (gh + 1.05 - boat.position.y) * Math.min(1, dt * 8);
     playerVy = 0;
-    if (boatMode === 'walk' && !landedOnce){
+    if (!landedOnce){
       landedOnce = true;
       popupAt3D(boat.position, '🏝️ 登上荒岛！', '#ffd98a');
       unlockAch('landfall');
       tutAdvance(5);
     }
   } else {
-    boatMode = 'swim';
-    const floor = gh + 1.3;
+    const floor = gh + 0.62;   // 俯卧贴底高度——浅水也能潜到海床
     if (boat.position.y < floor){ boat.position.y = floor; if (playerVy < 0) playerVy = 0; }
     if (boat.position.y > -0.15){ boat.position.y = -0.15; if (playerVy > 0) playerVy = 0; }
     const surfY = waveY(boat.position.x, boat.position.z, t) * 0.85 - 0.35;
     if (boat.position.y > -0.9 && !vDn && !forcedAscend)
       boat.position.y += (surfY - boat.position.y) * Math.min(1, dt * 3);
+    boatMode = boat.position.y < -0.75 ? 'swim' : 'wade';   // 按身体入水程度分态
   }
 
   // —— 氧气（分档：水面快速恢复 / 浅水浮潜缓回 / 深水消耗）——
@@ -3586,6 +3660,7 @@ document.getElementById('startBest').innerHTML =
   (save.best > 0 ? `🏆 最高分 ${save.best} · 图鉴 ${Object.keys(save.collected).length}/${SPECIES.length + COLLECTIBLES.length}` : '');
 document.getElementById('btnStart').addEventListener('click', () => {
   initAudio();
+  startBGM();
   state.started = true;
   startEl.classList.add('hide');
   toast('🤿 用 <b>WASD</b> 游动追逐鱼群，靠近后按<b>空格</b>捕捞！');
