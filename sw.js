@@ -1,5 +1,5 @@
 // 碧海追鱼 · Service Worker（离线缓存，单文件版）
-const CACHE = 'coralchase-v4';
+const CACHE = 'coralchase-v5';
 const ASSETS = [
   './',
   './index.html',
