@@ -16,3 +16,12 @@
 - 再次确认 quirks 价值：测试遇 `#help` null，按 quirks"SW 旧缓存污染"条目排查——curl 确认服务器已是新版 → 清 registrations/caches 后恢复，5 分钟定位（首次踩此坑时耗了约 40 分钟）。
 - Godogen 不适合本 agent 的部分：Godot API 文档/场景构建器（我们是 three.js）、Tripo3D/302.ai 资产生成（无 key）、Telegram 通道（用 GitHub+Pages 代替）、1M 上下文分支（用技能渐进加载+文档协议代替）。
 - 可移植核心：可视化 QA 闭环（截图+视觉模型 fail 循环）、文档协议（PLAN/MEMORY 断点续做）、风险优先分解、quirks 机构知识、≤3 轮修复循环。
+
+## 2026-11-13 — Blender 管线接入（潜水员重制）
+- Blender MCP 直连用户正在运行的 4.5.16（addon v1.8/协议15）；此前用 `where blender` 探测不到它（不在 PATH）——**探测别只查 PATH**
+- 误开的 4.2.3 因端口 9876 被 4.5 占用而静默启动失败，日志无报错——两个 Blender 并存时先杀自己开的
+- 建模管线：execute_blender_code 跑 bmesh 脚本（6 部件/枢轴对齐游戏动画位）→ loop_triangles 三角化（4.5 里 t.loops 是 int 索引数组，取 me.loops[li].vertex_index）→ 写 F:/fish JSON → node 拼接进 index.html
+- Blender 4.2/4.5 插件扫描路径是 addons_core（legacy addons 目录 4.5 未注册扫描）
+- 教训（重要）：execute_blender_code 的脚本开头清空 bpy.data.objects 会删掉用户打开场景里的对象——**先 get_scene_info 确认场景内容再动手**，或建独立 collection
+- SW 导航请求改 network-first（此前 cache-first 导致用户每次更新都要双重刷新）——体验级修复
+- 回归发现并修：wade 态误禁撒网（齐胸水深不让捕鱼）
